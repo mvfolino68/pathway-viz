@@ -1,615 +1,432 @@
-# StreamViz Vision & Architecture
+# StreamViz Vision
 
-## The Problem We're Solving
+## One-Line Summary
 
-**Current reality**: Engineers working with streaming data (Kafka, Redpanda, Flink, Pathway) have limited options:
-1. **Grafana/Datadog** - Great, but requires infrastructure, PromQL/InfluxQL, and doesn't integrate with Python code
-2. **Streamlit** - Amazing DX, but designed for request-response, not real-time streaming
-3. **Custom dashboards** - Every team builds their own, wasting engineering time
-
-**StreamViz goal**: The simplicity of Streamlit, but purpose-built for streaming data. One `pip install`, one Python file, real-time dashboards.
+**StreamViz is the visualization layer for Pathway** — making streaming aggregations visible, shareable, and beautiful.
 
 ---
 
-## Target Use Cases
+## The Problem
 
-### 1. **Development & Debugging** (Primary)
-- "I'm building a Kafka consumer and want to see what's happening"
-- "I'm testing a Pathway pipeline and need to visualize aggregations"
-- "I want to see my ML model's predictions as they stream in"
+Pathway is an incredible stream processing engine. But when you build a pipeline:
 
-**Requirements**:
-- Zero config startup
-- Works with any Python streaming code
-- Shows data immediately
-
-### 2. **Team Demos & Presentations**
-- "I want to show stakeholders our real-time fraud detection"
-- "Demo our streaming ETL pipeline to the team"
-
-**Requirements**:
-- Professional-looking dashboards
-- Theming/branding options
-- Shareable URLs
-
-### 3. **Lightweight Production Monitoring**
-- "I need a simple dashboard for our internal streaming service"
-- "We don't want to set up Grafana for a small project"
-
-**Requirements**:
-- Data persistence (new viewers see history)
-- Multiple concurrent viewers
-- Basic alerting/thresholds
-
-### 4. **Data Exploration**
-- "I want to explore patterns in my streaming data"
-- "Let me filter and zoom into specific time ranges"
-
-**Requirements**:
-- Interactive charts (zoom, pan, filter)
-- Time range selection
-- Pause/resume streaming
-
----
-
-## Core Design Principles
-
-### 1. **Progressive Complexity**
 ```python
-# Level 1: Just works (5 seconds to dashboard)
-import stream_viz as sv
-sv.metric("cpu").send(75)
-
-# Level 2: Customized (5 minutes to polished dashboard)
-sv.title("Production Metrics")
-cpu = sv.metric("cpu", title="CPU Usage", unit="%", 
-                window="1m", aggregation="avg",
-                thresholds={"warning": 70, "critical": 90})
-
-# Level 3: Full control (production-ready)
-sv.configure(
-    theme="dark",
-    persistence="sqlite:///metrics.db",
-    retention="7d",
-    auth={"type": "basic", "users": ["admin"]},
+stats = orders.groupby(pw.this.region).reduce(
+    total=pw.reducers.sum(pw.this.amount),
+    count=pw.reducers.count(),
 )
 ```
 
-### 2. **Streaming-First, Not Adapted**
-Unlike Streamlit (which retrofitted `st.write_stream`), we're built for:
-- **Continuous data flow** - not request-response
-- **Windowed aggregations** - built into the API
-- **Backpressure handling** - won't crash on high throughput
-- **Time-series native** - every data point has a timestamp
+**How do you see what's happening?**
 
-### 3. **Batteries Included, But Swappable**
-- Default charting library works great out of box
-- But can swap for Apache ECharts, Plotly, etc.
-- Default in-memory storage
-- But can plug in Redis, SQLite, TimescaleDB
+Current options:
+1. `pw.io.csv.write()` and tail the file → ugly, no visualization
+2. Build a custom dashboard → days of work
+3. Grafana/Datadog → infrastructure overhead, learning curve
+4. Print statements → ephemeral, can't share
 
----
-
-## Architecture Decisions
-
-### Frontend: Chart Library Selection
-
-| Library | Pros | Cons | Verdict |
-|---------|------|------|---------|
-| **uPlot** (current) | Tiny (45kb), fast, good for time-series | Limited chart types, basic interactivity | Good for MVP |
-| **Apache ECharts** | Rich features, great interactivity, streaming support | Larger (800kb min) | **Best choice for v1** |
-| **Plotly.js** | Beautiful, well-known | Very large (3MB+), not streaming-optimized | Too heavy |
-| **Lightweight Charts** | Designed for financial streaming | Limited to candlestick/line | Too specialized |
-| **Chart.js** | Popular, decent | Poor streaming performance | Not suitable |
-
-**Decision**: Migrate to **Apache ECharts** because:
-- Native streaming/dynamic data support
-- Rich interactivity (zoom, pan, brush selection, tooltips)
-- Multiple chart types (line, bar, gauge, heatmap, scatter)
-- Theming system built-in
-- Good performance with large datasets
-- 300kb gzipped is acceptable
-
-### Backend: Data Persistence
-
-**Problem**: Currently, when a new user opens the dashboard, they see nothing until new data arrives.
-
-**Solution**: Tiered storage with sensible defaults
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Python Process                          │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Ring Buffer (in-memory, last N points per metric)  │   │
-│  │  - Always available, zero config                     │   │
-│  │  - Lost on restart                                   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                 │
-│                           ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Persistence Layer (optional)                        │   │
-│  │  - SQLite (default if enabled)                       │   │
-│  │  - Redis (for distributed)                           │   │
-│  │  - TimescaleDB (for serious production)              │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Default behavior**:
-- Keep last 1000 points per metric in memory
-- New connections receive full buffer immediately
-- Optional: `sv.configure(persistence="sqlite:///data.db", retention="24h")`
-
-### Data Flow Architecture
-
-```
-                                    ┌──────────────────┐
-                                    │   Browser (N)    │
-                                    │  ┌────────────┐  │
-                                    │  │  ECharts   │  │
-                                    │  │  Dashboard │  │
-                                    │  └────────────┘  │
-                                    └────────┬─────────┘
-                                             │ WebSocket
-                                             ▼
-┌─────────────────┐    send()     ┌──────────────────────┐
-│  Python Code    │──────────────▶│   Rust Core          │
-│                 │               │  ┌────────────────┐  │
-│  metric.send(v) │               │  │ Ring Buffer    │  │
-│  table.append() │               │  │ (per widget)   │  │
-│  gauge.set()    │               │  └───────┬────────┘  │
-└─────────────────┘               │          │           │
-                                  │          ▼           │
-                                  │  ┌────────────────┐  │
-                                  │  │ Broadcast to   │  │
-                                  │  │ all WebSockets │  │
-                                  │  └────────────────┘  │
-                                  │          │           │
-                                  │          ▼           │
-                                  │  ┌────────────────┐  │
-                                  │  │ Persistence    │  │
-                                  │  │ (optional)     │  │
-                                  │  └────────────────┘  │
-                                  └──────────────────────┘
-```
-
----
-
-## API Design (v1.0)
-
-### Widget Types
+**StreamViz answer**: One line of code, instant dashboard.
 
 ```python
+sv.pathway_table(stats)  # Done.
+```
+
+---
+
+## Target Users
+
+### Primary: Pathway Developers
+
+**Persona**: Data engineer building streaming pipelines with Pathway.
+
+**Jobs to be done**:
+- "I want to see my Pathway aggregations updating live"
+- "I need to demo this pipeline to stakeholders"
+- "I'm debugging why my windowed join isn't working"
+- "I want a simple dashboard without setting up Grafana"
+
+**Why they'll love StreamViz**:
+- Zero learning curve — Pythonic API they already know
+- Works with their existing Pathway code
+- No infrastructure to set up
+- Professional-looking output for demos
+
+### Secondary: Stream Processing Explorers
+
+**Persona**: Developer evaluating Pathway or learning stream processing.
+
+**Jobs to be done**:
+- "I want to understand what tumbling windows do"
+- "Show me the data flowing through my pipeline"
+- "I'm following a tutorial and want to see results"
+
+**Why they'll love StreamViz**:
+- Immediate visual feedback while learning
+- Makes abstract concepts concrete
+- Great for tutorials and documentation
+
+---
+
+## Core Principle: Pathway Does the Hard Work
+
+**We don't compete with Pathway's aggregations. We visualize them.**
+
+| Feature | Pathway | StreamViz |
+|---------|---------|-----------|
+| Windowed aggregations | ✅ Built-in | ❌ Not needed |
+| Joins and transformations | ✅ Full support | ❌ Just visualize output |
+| Kafka/Redpanda connectors | ✅ Native | ✅ Via Pathway |
+| Real-time updates | ✅ Core feature | ✅ Via WebSocket |
+| Dashboard UI | ❌ | ✅ Core feature |
+| Interactive charts | ❌ | ✅ Core feature |
+
+StreamViz is the "last mile" — taking Pathway's output and making it visible.
+
+---
+
+## API Design
+
+### The Dream API
+
+```python
+import pathway as pw
 import stream_viz as sv
 
-# === METRICS (time-series) ===
-cpu = sv.metric("cpu", 
-    title="CPU Usage",
-    unit="%",
-    color="#00d4ff",
-    window="1m",           # Aggregate over 1 minute windows
-    aggregation="avg",     # sum, avg, min, max, count, rate, p50, p95, p99
-    max_points=500,        # History length
-    thresholds={           # Color zones
-        "warning": 70,
-        "critical": 90
-    }
+# === Pathway Pipeline ===
+orders = pw.io.kafka.read(...)
+by_region = orders.groupby(pw.this.region).reduce(
+    total=pw.reducers.sum(pw.this.amount),
+    count=pw.reducers.count(),
 )
+totals = orders.reduce(
+    revenue=pw.reducers.sum(pw.this.amount),
+    orders=pw.reducers.count(),
+)
+
+# === StreamViz Dashboard ===
+sv.title("E-Commerce Analytics")
+
+# Show the aggregation table
+sv.pathway_table(by_region, 
+    title="Orders by Region",
+    columns=["region", "total", "count"]
+)
+
+# Extract single values as stats
+sv.pathway_stat(totals, column="revenue", title="Total Revenue", unit="$")
+sv.pathway_stat(totals, column="orders", title="Total Orders")
+
+# Time series from windowed aggregations
+per_minute = orders.windowby(...).reduce(rps=pw.reducers.count())
+sv.pathway_metric(per_minute, 
+    time_column="window_end",
+    value_column="rps",
+    title="Orders/min"
+)
+
+sv.start()
+pw.run()
+```
+
+### How It Works Under the Hood
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  sv.pathway_table(table)                                         │
+│                                                                  │
+│  1. Creates a Pathway output connector                           │
+│  2. On each table update, serializes changed rows                │
+│  3. Sends to StreamViz Rust core via channel                     │
+│  4. Broadcasts to all WebSocket clients                          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Implementation sketch:
+
+```python
+def pathway_table(table: pw.Table, *, title: str = None, columns: list = None):
+    """Subscribe to a Pathway table and visualize it."""
+    
+    widget_id = _register_table_widget(title, columns)
+    
+    def on_change(key, row, time, is_addition):
+        if is_addition:
+            _send_data({
+                "widget": widget_id,
+                "type": "table_upsert",
+                "key": key,
+                "row": row,
+            })
+        else:
+            _send_data({
+                "widget": widget_id,
+                "type": "table_delete",
+                "key": key,
+            })
+    
+    # Use Pathway's output connector mechanism
+    pw.io.subscribe(table, on_change=on_change)
+```
+
+---
+
+## Widget Types
+
+### 1. Pathway Table (`sv.pathway_table`)
+
+Shows a Pathway table with live updates. Rows are keyed, so updates replace existing rows.
+
+```python
+sv.pathway_table(aggregation_table,
+    title="Orders by Region",
+    columns=["region", "total", "count"],
+    sort_by="total",
+    sort_desc=True,
+    max_rows=100,
+)
+```
+
+**Frontend behavior**:
+- Shows table with headers
+- Updates rows in-place (by key)
+- Highlights recently changed rows
+- Sortable columns
+- Optional: sparklines in numeric columns
+
+### 2. Pathway Stat (`sv.pathway_stat`)
+
+Extracts a single value from a Pathway table (typically a single-row reduction).
+
+```python
+totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
+sv.pathway_stat(totals, column="revenue", title="Revenue", unit="$")
+```
+
+**Frontend behavior**:
+- Big number display
+- Shows delta from previous value
+- Optional threshold colors
+
+### 3. Pathway Metric (`sv.pathway_metric`)
+
+Time series from a windowed Pathway aggregation.
+
+```python
+per_minute = orders.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=timedelta(minutes=1))
+).reduce(count=pw.reducers.count())
+
+sv.pathway_metric(per_minute,
+    time_column="window_end",
+    value_column="count",
+    title="Orders/min"
+)
+```
+
+**Frontend behavior**:
+- Line chart with time on X axis
+- Auto-scrolling as new windows arrive
+- Zoomable
+
+### 4. Standalone Widgets
+
+For non-Pathway use cases (or mixed dashboards):
+
+```python
+# Manual data sending
+cpu = sv.gauge("cpu", title="CPU", max_val=100)
 cpu.send(75.5)
 
-# === STATS (big numbers) ===
-total = sv.stat("total_orders",
-    title="Total Orders",
-    format=",.0f",         # Number formatting
-    delta=True,            # Show change from last value
-    delta_color="auto",    # green for +, red for -
-    sparkline=True,        # Mini chart behind the number
-)
-total.send(15234)
+events = sv.table("events", columns=["time", "level", "msg"])
+events.send({"time": "12:34", "level": "ERROR", "msg": "Failed"})
 
-# === GAUGES (bounded values) ===
-temp = sv.gauge("temperature",
-    title="Server Temp",
-    unit="°C",
-    min=0,
-    max=100,
-    thresholds=[(50, "green"), (70, "yellow"), (100, "red")],
-)
-temp.send(62)
-
-# === MULTI-SERIES CHARTS ===
-chart = sv.line_chart("temperatures",
-    title="Component Temps",
-    y_axis={"label": "°C", "min": 0, "max": 100},
-)
-chart.add_series("cpu", color="red", label="CPU")
-chart.add_series("gpu", color="blue", label="GPU")
-chart.send("cpu", 65)
-chart.send("gpu", 72)
-
-# === BAR CHARTS ===
-regions = sv.bar_chart("traffic",
-    title="Traffic by Region",
-    categories=["US", "EU", "Asia"],
-    stacked=False,
-)
-regions.send({"US": 1200, "EU": 980, "Asia": 1450})
-
-# === TABLES (streaming) ===
-logs = sv.table("events",
-    title="Recent Events",
-    columns=[
-        {"name": "time", "type": "datetime", "width": 100},
-        {"name": "level", "type": "badge", "colors": {"ERROR": "red", "WARN": "yellow"}},
-        {"name": "message", "type": "text"},
-    ],
-    max_rows=100,
-    sortable=True,
-    filterable=True,
-)
-logs.send({"time": datetime.now(), "level": "ERROR", "message": "Connection failed"})
-
-# === TEXT/MARKDOWN ===
-status = sv.text("status", style="caption")
-status("Connected to Kafka cluster")
-
-sv.markdown("notes", """
-## Pipeline Status
-- **Source**: Kafka (3 partitions)
-- **Sink**: PostgreSQL
-""")
-
-# === HEATMAPS ===
-heatmap = sv.heatmap("latency_distribution",
-    title="Latency by Hour",
-    x_labels=["Mon", "Tue", "Wed", "Thu", "Fri"],
-    y_labels=["00:00", "06:00", "12:00", "18:00"],
-)
-heatmap.send([[10, 20, 30, 40, 50], ...])
-```
-
-### Layout System
-
-```python
-# Simple: auto-layout (current behavior)
-sv.metric("cpu")
-sv.metric("memory")
-# Renders in 2-column grid
-
-# Explicit columns
-with sv.columns(3):
-    sv.stat("orders")
-    sv.stat("revenue")
-    sv.stat("users")
-
-# Rows within columns
-with sv.columns(2):
-    with sv.column():
-        sv.metric("cpu", title="CPU")
-        sv.metric("memory", title="Memory")
-    with sv.column():
-        sv.table("logs")
-
-# Expanders (collapsible sections)
-with sv.expander("Advanced Metrics", expanded=False):
-    sv.metric("gc_time")
-    sv.metric("heap_size")
-
-# Tabs
-with sv.tabs(["Overview", "Details", "Logs"]):
-    with sv.tab("Overview"):
-        sv.stat("total")
-    with sv.tab("Details"):
-        sv.table("details")
-    with sv.tab("Logs"):
-        sv.table("logs")
-
-# Sidebar
-with sv.sidebar():
-    sv.text("Filters")
-    # Future: interactive widgets
-```
-
-### Configuration & Theming
-
-```python
-sv.configure(
-    # === Appearance ===
-    theme="dark",              # "dark", "light", or custom
-    title="My Dashboard",
-    favicon="/path/to/icon.png",
-    logo="/path/to/logo.png",
-    
-    # === Behavior ===
-    auto_refresh=True,         # Auto-scroll charts
-    default_time_range="5m",   # Initial view window
-    
-    # === Persistence ===
-    persistence=None,          # None, "memory", "sqlite:///path", "redis://host"
-    retention="24h",           # How long to keep data
-    buffer_size=1000,          # In-memory ring buffer per metric
-    
-    # === Server ===
-    host="0.0.0.0",
-    port=3000,
-    cors=True,
-    
-    # === Auth (future) ===
-    auth=None,                 # None, {"type": "basic", "users": {...}}
-)
-
-# Custom themes
-sv.configure(theme={
-    "background": "#1a1a2e",
-    "surface": "#16213e",
-    "primary": "#00d4ff",
-    "secondary": "#7b2cbf",
-    "success": "#00ff88",
-    "warning": "#ffd93d",
-    "error": "#ff6b6b",
-    "text": "#e0e0e0",
-    "text_muted": "#888888",
-    "font_family": "Inter, sans-serif",
-})
-```
-
-### Interactivity (Frontend Features)
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  My Dashboard                               ● Live  ⏸ Pause    │
-├─────────────────────────────────────────────────────────────────┤
-│  Time Range: [5m ▼] [15m] [1h] [6h] [24h] [Custom...]          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────┐  ┌─────────────────────┐              │
-│  │ CPU Usage      75%  │  │ Memory        62%   │              │
-│  │ ████████████░░░░░░  │  │ ██████████░░░░░░░░  │              │
-│  │ [Chart with zoom]   │  │ [Chart with zoom]   │              │
-│  │                     │  │                     │              │
-│  │ 🔍 Click to zoom    │  │ 📊 Export CSV       │              │
-│  └─────────────────────┘  └─────────────────────┘              │
-│                                                                 │
-│  Recent Events                               [Filter: ____]    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │ Time     │ Level │ Message                              │   │
-│  │ 12:34:56 │ ERROR │ Connection timeout                   │   │
-│  │ 12:34:52 │ INFO  │ Request processed                    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Interactive features**:
-- **Pause/Resume**: Stop live updates to analyze data
-- **Time range selector**: View last 5m, 15m, 1h, etc.
-- **Zoom**: Click-drag to zoom into time range
-- **Pan**: Shift+drag to pan through history
-- **Tooltips**: Hover for exact values
-- **Export**: Download data as CSV/JSON
-- **Fullscreen**: Expand individual charts
-
----
-
-## Windowed Aggregations (Built-in)
-
-One of the key differentiators: **first-class support for stream processing patterns**.
-
-### Tumbling Windows
-```python
-# Emit sum every minute
-orders_per_min = sv.metric("orders", window="1m", aggregation="sum")
-
-for order in kafka_consumer:
-    orders_per_min.send(order["amount"])  # Aggregated automatically
-```
-
-### Sliding Windows (Future)
-```python
-# Moving average over last 5 minutes, emitting every 10 seconds
-avg_latency = sv.metric("latency", 
-    window="5m", 
-    slide="10s",
-    aggregation="avg"
-)
-```
-
-### Percentiles
-```python
-# P95 latency per minute
-p95_latency = sv.metric("latency_p95", 
-    window="1m", 
-    aggregation="p95"
-)
-```
-
-### Implementation
-The aggregation happens **in the Rust core** for performance:
-
-```rust
-struct WindowedAggregator {
-    window_size: Duration,
-    aggregation: AggregationType,
-    buffer: VecDeque<(Timestamp, f64)>,
-    // Pre-computed stats for O(1) updates
-    sum: f64,
-    count: u64,
-    min: f64,
-    max: f64,
-    // For percentiles: t-digest or similar
-    digest: Option<TDigest>,
-}
+latency = sv.metric("latency", title="Latency", unit="ms")
+latency.send(42.5)
 ```
 
 ---
 
-## Data Persistence Design
+## Technical Architecture
 
-### The Problem
-Currently, when you open the dashboard:
-1. You see "Waiting for metrics..."
-2. Data only appears as new values arrive
-3. Refresh the page = lose everything
-
-### The Solution: Ring Buffer + Optional Persistence
-
-**Phase 1: In-Memory Ring Buffer (Default)**
-```python
-# Automatic - no config needed
-# Last 1000 points per metric kept in memory
-# New connections receive full buffer
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Python Process                              │
+│                                                                     │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌────────────────┐  │
+│  │  Pathway Engine │    │  StreamViz API  │    │  Rust Core     │  │
+│  │                 │    │                 │    │  (PyO3)        │  │
+│  │  table.reduce() │───▶│ pathway_table() │───▶│                │  │
+│  │  windowby()     │    │ pathway_stat()  │    │  Ring Buffer   │  │
+│  │  groupby()      │    │ pathway_metric()│    │  (per widget)  │  │
+│  │                 │    │                 │    │                │  │
+│  └─────────────────┘    └─────────────────┘    └───────┬────────┘  │
+│                                                        │           │
+└────────────────────────────────────────────────────────┼───────────┘
+                                                         │
+                                            WebSocket    │
+                                            Broadcast    │
+                                                         ▼
+                              ┌───────────────────────────────────────┐
+                              │            Browser (N)                │
+                              │                                       │
+                              │   ┌─────────┐ ┌─────────┐ ┌───────┐  │
+                              │   │  Table  │ │  Chart  │ │ Gauge │  │
+                              │   │         │ │         │ │       │  │
+                              │   └─────────┘ └─────────┘ └───────┘  │
+                              │                                       │
+                              └───────────────────────────────────────┘
 ```
 
-**Phase 2: SQLite Persistence (Opt-in)**
-```python
-sv.configure(
-    persistence="sqlite:///metrics.db",
-    retention="24h"
-)
-# Now data survives restarts
-# New connections get historical data
-```
+### Data Flow for Pathway Tables
 
-**Phase 3: Distributed Storage (Future)**
-```python
-sv.configure(
-    persistence="redis://localhost:6379",
-    # or
-    persistence="timescaledb://user:pass@host/db"
-)
-```
+1. **Pathway produces updates** via `pw.io.subscribe()`
+2. **StreamViz receives** `(key, row, time, is_addition)`
+3. **Rust core** stores in widget-specific buffer
+4. **WebSocket broadcasts** to all connected browsers
+5. **Frontend** updates table in-place using key
 
-### Message Protocol Enhancement
+### Message Protocol
 
-Currently we send:
 ```json
-{"type": "data", "metric": "cpu", "timestamp": 1234567890, "value": 75.5}
-```
-
-Enhanced for history:
-```json
-// On new connection, server sends buffer dump
+// Config (on connect)
 {
-    "type": "history",
-    "widget": "cpu",
-    "data": [
-        [1234567800, 72.3],
-        [1234567810, 73.1],
-        [1234567820, 75.5],
-        // ... last N points
-    ]
+    "type": "config",
+    "title": "E-Commerce Analytics",
+    "widgets": {
+        "orders_by_region": {
+            "widget_type": "pathway_table",
+            "title": "Orders by Region",
+            "columns": [
+                {"name": "region", "type": "string"},
+                {"name": "total", "type": "number", "format": "$,.2f"},
+                {"name": "count", "type": "number"}
+            ]
+        }
+    }
 }
 
-// Then continues with live updates
-{"type": "data", "widget": "cpu", "timestamp": 1234567890, "value": 76.2}
+// Table upsert
+{
+    "type": "data",
+    "widget": "orders_by_region",
+    "op": "upsert",
+    "key": "us-east",
+    "row": {"region": "us-east", "total": 15234.50, "count": 42}
+}
+
+// Table delete
+{
+    "type": "data",
+    "widget": "orders_by_region", 
+    "op": "delete",
+    "key": "us-east"
+}
+
+// Stat update
+{
+    "type": "data",
+    "widget": "total_revenue",
+    "value": 152345.67,
+    "delta": 1234.50
+}
+
+// Metric point
+{
+    "type": "data",
+    "widget": "orders_per_min",
+    "timestamp": 1701705600000,
+    "value": 156
+}
 ```
 
 ---
 
 ## Implementation Roadmap
 
-### Phase 1: Core Improvements (This Sprint)
-- [ ] **Ring buffer in Rust** - Keep last N points per widget
-- [ ] **History on connect** - Send buffer to new WebSocket connections
-- [ ] **Windowed aggregations** - Tumbling windows in Rust
-- [ ] **New widget types** - stat, gauge (Python API)
-- [ ] **Frontend: ECharts migration** - Replace uPlot
+### Phase 1: Pathway Integration (Next)
 
-### Phase 2: Interactivity (Next Sprint)
-- [ ] **Time range selector** - UI to change visible window
-- [ ] **Pause/Resume** - Stop live updates
-- [ ] **Zoom/Pan** - Chart interactions
-- [ ] **Theming** - Dark/light + custom themes
-- [ ] **Layout system** - columns(), row(), expander()
+**Goal**: `sv.pathway_table()` works end-to-end.
 
-### Phase 3: Production Features
-- [ ] **SQLite persistence** - Survive restarts
-- [ ] **Multiple pages** - sv.page("metrics"), sv.page("logs")
-- [ ] **Export** - CSV/JSON download
-- [ ] **Alerts** - Threshold notifications (console, webhook)
+Tasks:
+- [ ] Implement `sv.pathway_table()` using `pw.io.subscribe()`
+- [ ] Handle upserts and deletes in frontend table
+- [ ] Highlight recently changed rows
+- [ ] Test with real Kafka + Pathway pipeline
+
+### Phase 2: Pathway Stats & Metrics
+
+**Goal**: Full Pathway widget suite.
+
+Tasks:
+- [ ] `sv.pathway_stat()` — single value from table
+- [ ] `sv.pathway_metric()` — time series from windowed aggregation
+- [ ] Delta tracking for stats
+- [ ] Proper time axis for metrics
+
+### Phase 3: Polish
+
+**Goal**: Production-ready for demos.
+
+Tasks:
+- [ ] Fix layout issues (table stretching charts)
+- [ ] Add widget descriptions/subtitles
+- [ ] Theming (dark/light)
+- [ ] Pause/resume live updates
+- [ ] Time range selector
 
 ### Phase 4: Advanced
-- [ ] **Authentication** - Basic auth, API keys
-- [ ] **Redis persistence** - Distributed deployments
-- [ ] **Embedded mode** - Use in Jupyter notebooks
-- [ ] **Sliding windows** - More aggregation options
-- [ ] **Percentile aggregations** - p50, p95, p99
 
----
+**Goal**: Feature parity with simple dashboards.
 
-## File Structure (After Refactor)
-
-```
-stream_viz/
-├── python/
-│   └── stream_viz/
-│       ├── __init__.py          # Public API (sv.metric, sv.start, etc.)
-│       ├── __main__.py          # CLI (python -m stream_viz)
-│       ├── widgets/
-│       │   ├── __init__.py
-│       │   ├── metric.py        # Time-series metric
-│       │   ├── stat.py          # Big number display
-│       │   ├── gauge.py         # Circular gauge
-│       │   ├── chart.py         # Multi-series charts
-│       │   ├── table.py         # Streaming table
-│       │   └── text.py          # Text/markdown
-│       ├── aggregations/
-│       │   ├── __init__.py
-│       │   └── windows.py       # Tumbling/sliding window logic
-│       ├── layout/
-│       │   ├── __init__.py
-│       │   └── containers.py    # columns, row, expander, tabs
-│       ├── config.py            # sv.configure() implementation
-│       └── themes.py            # Theme definitions
-├── src/                         # Rust core
-│   ├── lib.rs
-│   ├── server.rs                # Axum WebSocket server
-│   ├── state.rs                 # Shared state, ring buffers
-│   ├── aggregator.rs            # Windowed aggregation (NEW)
-│   └── persistence.rs           # Storage backends (NEW)
-├── frontend/
-│   ├── index.html               # Main dashboard (embedded in binary)
-│   ├── js/
-│   │   ├── app.js               # Main application logic
-│   │   ├── widgets/             # Widget renderers
-│   │   └── themes/              # Theme CSS
-│   └── css/
-│       └── styles.css
-└── examples/
-    ├── simple_demo.py
-    ├── kafka_demo.py
-    ├── pathway_demo.py
-    └── full_dashboard.py        # Showcases all features
-```
+Tasks:
+- [ ] Layout system (`sv.columns()`, `sv.row()`)
+- [ ] Export data (CSV/JSON)
+- [ ] Snapshot dashboard as image
+- [ ] Basic authentication
 
 ---
 
 ## Success Metrics
 
-1. **Time to first dashboard**: < 30 seconds from `pip install` to seeing data
-2. **Performance**: Handle 10,000 data points/second without lag
-3. **Memory efficiency**: < 100MB for typical dashboard with 1M points history
-4. **Adoption**: Developers choose StreamViz over custom solutions
+1. **Pathway adoption**: StreamViz mentioned in Pathway tutorials/docs
+2. **Time to dashboard**: < 60 seconds from Pathway pipeline to visualization
+3. **Demo quality**: Stakeholders impressed by dashboard appearance
+4. **Performance**: Handle Pathway pipelines producing 10k updates/sec
 
 ---
 
 ## Open Questions
 
-1. **Should we support bi-directional communication?** (Frontend → Python for filters/controls)
-2. **How do we handle very high throughput?** (Downsample before sending to browser?)
-3. **Should persistence be in Rust or Python?** (Rust for performance, Python for flexibility)
-4. **Do we need a separate "viewer" mode?** (Read-only dashboard without running Python)
+1. **Should we bundle with Pathway?** (As `pw.viz.table()` instead of separate package)
+2. **How do we handle high-cardinality tables?** (100k rows in groupby)
+3. **Do we need server-side pagination?**
+4. **Should Pathway team be involved in design?**
 
 ---
 
-## Next Steps
+## Competitive Positioning
 
-1. ✅ Create this vision document
-2. 🔄 Implement ring buffer in Rust (send history on connect)
-3. 🔄 Add windowed aggregations to Python API
-4. 🔄 Migrate frontend to ECharts
-5. 🔄 Add stat and gauge widgets
-6. 🔄 Implement theming system
-7. 🔄 Add time range selector to UI
+### vs Grafana
+- ❌ Grafana: Requires infrastructure, PromQL learning curve
+- ✅ StreamViz: One `pip install`, Python-native
 
-Let's build the streaming dashboard that developers actually want to use.
+### vs Streamlit
+- ❌ Streamlit: Request-response, awkward for streaming
+- ✅ StreamViz: Streaming-first, Pathway-native
+
+### vs Custom Dashboard
+- ❌ Custom: Days/weeks of development
+- ✅ StreamViz: Minutes to dashboard
+
+### vs Print Statements
+- ❌ Print: Ephemeral, no visualization, can't share
+- ✅ StreamViz: Persistent, visual, shareable URL
+
+---
+
+## The Pitch
+
+> "Pathway gives you world-class stream processing.
+> StreamViz gives you world-class stream visualization.
+> Together: the complete streaming data platform for Python."

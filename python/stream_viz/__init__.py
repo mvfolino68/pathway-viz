@@ -1,32 +1,40 @@
 """
-StreamViz - Real-time streaming data visualization.
+StreamViz - The visualization layer for Pathway.
 
-A Streamlit-like dashboard purpose-built for streaming data from
-Kafka, Redpanda, Pathway, or any Python data source.
+Real-time dashboards for streaming data pipelines. Purpose-built for
+Pathway, but works with any Python data source.
 
-Quick Start:
+Pathway Integration (Primary API):
+
+    import pathway as pw
+    import stream_viz as sv
+
+    # Your Pathway pipeline
+    orders = pw.io.kafka.read(...)
+    stats = orders.groupby(pw.this.region).reduce(
+        total=pw.reducers.sum(pw.this.amount),
+        count=pw.reducers.count(),
+    )
+
+    # Visualize it
+    sv.title("Order Analytics")
+    sv.pathway_table(stats, title="Orders by Region")
+    sv.start()
+    pw.run()
+
+Standalone Mode (No Pathway):
+
     import stream_viz as sv
 
     sv.title("My Dashboard")
-    cpu = sv.metric("cpu", title="CPU Usage", unit="%")
+    cpu = sv.gauge("cpu", title="CPU", unit="%", max_val=100)
+    latency = sv.metric("latency", title="Latency", unit="ms")
 
     sv.start()
 
     while True:
         cpu.send(get_cpu_usage())
-
-With Windowed Aggregations:
-    # Count orders per minute
-    orders = sv.metric("orders", title="Orders/min",
-                       window="1m", aggregation="count")
-
-    # Average latency over 30 seconds
-    latency = sv.metric("latency", title="Avg Latency",
-                        window="30s", aggregation="avg")
-
-    for event in kafka_consumer:
-        orders.send(1)  # Each call counts as 1
-        latency.send(event["latency_ms"])  # Values are averaged
+        latency.send(get_latency())
 """
 
 from __future__ import annotations
@@ -44,7 +52,11 @@ from ._stream_viz import start_server as _start_server
 
 __version__ = "0.1.0"
 __all__ = [
-    # Core API
+    # Pathway Integration (primary API)
+    "pathway_table",
+    "pathway_stat",
+    "pathway_metric",
+    # Core Widgets
     "title",
     "metric",
     "stat",
@@ -949,6 +961,265 @@ def run_demo(port: int = 3000) -> None:
 
     except KeyboardInterrupt:
         print("\nDemo stopped.")
+
+
+# =============================================================================
+# Pathway Integration
+# =============================================================================
+
+# Type alias for Pathway table (optional import)
+try:
+    import pathway as pw
+
+    _PATHWAY_AVAILABLE = True
+except ImportError:
+    pw = None  # type: ignore
+    _PATHWAY_AVAILABLE = False
+
+
+def pathway_table(
+    table: Any,
+    *,
+    title: str | None = None,
+    columns: list[str] | None = None,
+    column_config: dict[str, dict] | None = None,
+    max_rows: int = 100,
+    sort_by: str | None = None,
+    sort_desc: bool = True,
+) -> None:
+    """
+    Visualize a Pathway table with live updates.
+
+    As the Pathway table updates (inserts, updates, deletes), the dashboard
+    table updates in real-time. Rows are keyed by Pathway's internal ID.
+
+    Args:
+        table: A Pathway Table object
+        title: Display title
+        columns: Which columns to show (None = all)
+        column_config: Per-column formatting config
+        max_rows: Maximum rows to display
+        sort_by: Column to sort by
+        sort_desc: Sort descending
+
+    Example:
+        stats = orders.groupby(pw.this.region).reduce(
+            total=pw.reducers.sum(pw.this.amount),
+            count=pw.reducers.count(),
+        )
+        sv.pathway_table(stats, title="Orders by Region")
+    """
+    if not _PATHWAY_AVAILABLE:
+        raise ImportError(
+            "Pathway is required for pathway_table(). "
+            "Install with: pip install pathway"
+        )
+
+    widget_id = f"pw_table_{id(table)}"
+
+    # Infer columns from table schema if not provided
+    if columns is None:
+        schema = table.schema
+        columns = [name for name in schema.keys() if not name.startswith("_")]
+
+    # Build column config
+    cols = []
+    for col in columns:
+        config = {"name": col}
+        if column_config and col in column_config:
+            config.update(column_config[col])
+        cols.append(config)
+
+    # Register widget
+    _state.widgets[widget_id] = {
+        "widget_type": "pathway_table",
+        "title": title or "Pathway Table",
+        "columns": cols,
+        "max_rows": max_rows,
+        "sort_by": sort_by,
+        "sort_desc": sort_desc,
+    }
+    if _state.started:
+        _send_config()
+
+    # Subscribe to table changes
+    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+        if is_addition:
+            # Filter to requested columns
+            filtered = {c: row.get(c) for c in columns}
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "op": "upsert",
+                        "key": str(key),
+                        "row": filtered,
+                    }
+                )
+            )
+        else:
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "op": "delete",
+                        "key": str(key),
+                    }
+                )
+            )
+
+    pw.io.subscribe(table, on_change=on_change)
+
+
+def pathway_stat(
+    table: Any,
+    column: str,
+    *,
+    title: str | None = None,
+    unit: str = "",
+    format_str: str | None = None,
+    delta: bool = True,
+    color: str | None = None,
+) -> None:
+    """
+    Display a single value from a Pathway table as a stat widget.
+
+    Best used with single-row reductions:
+        totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
+        sv.pathway_stat(totals, column="revenue", title="Revenue", unit="$")
+
+    Args:
+        table: A Pathway Table (typically single-row)
+        column: Which column to display
+        title: Display title
+        unit: Unit suffix
+        format_str: Python format string for the value
+        delta: Show change from previous value
+        color: Hex color
+    """
+    if not _PATHWAY_AVAILABLE:
+        raise ImportError(
+            "Pathway is required for pathway_stat(). "
+            "Install with: pip install pathway"
+        )
+
+    widget_id = f"pw_stat_{column}_{id(table)}"
+    last_value: list[float | None] = [None]
+
+    _state.widgets[widget_id] = {
+        "widget_type": "stat",
+        "title": title or column,
+        "unit": unit,
+        "color": color or _next_color(),
+    }
+    if _state.started:
+        _send_config()
+
+    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+        if is_addition and column in row:
+            value = row[column]
+            delta_val = None
+            if delta and last_value[0] is not None:
+                delta_val = value - last_value[0]
+            last_value[0] = value
+
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "value": value,
+                        "delta": delta_val,
+                        "timestamp": int(time * 1000),
+                    }
+                )
+            )
+
+    pw.io.subscribe(table, on_change=on_change)
+
+
+def pathway_metric(
+    table: Any,
+    value_column: str,
+    *,
+    time_column: str | None = None,
+    title: str | None = None,
+    unit: str = "",
+    color: str | None = None,
+    max_points: int = 200,
+) -> None:
+    """
+    Display a Pathway windowed aggregation as a time series chart.
+
+    Best used with windowby() aggregations:
+        per_minute = events.windowby(
+            pw.this.timestamp,
+            window=pw.temporal.tumbling(duration=timedelta(minutes=1))
+        ).reduce(count=pw.reducers.count())
+
+        sv.pathway_metric(per_minute,
+            time_column="window_end",
+            value_column="count",
+            title="Events/min"
+        )
+
+    Args:
+        table: A Pathway Table with windowed data
+        value_column: Column containing the metric value
+        time_column: Column containing the timestamp (window_end recommended)
+        title: Display title
+        unit: Unit suffix
+        color: Hex color
+        max_points: Max points to display
+    """
+    if not _PATHWAY_AVAILABLE:
+        raise ImportError(
+            "Pathway is required for pathway_metric(). "
+            "Install with: pip install pathway"
+        )
+
+    widget_id = f"pw_metric_{value_column}_{id(table)}"
+
+    _state.widgets[widget_id] = {
+        "widget_type": "metric",
+        "title": title or value_column,
+        "unit": unit,
+        "color": color or _next_color(),
+        "max_points": max_points,
+    }
+    if _state.started:
+        _send_config()
+
+    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+        if is_addition and value_column in row:
+            value = row[value_column]
+
+            # Use time_column if provided, otherwise use Pathway's time
+            if time_column and time_column in row:
+                ts = row[time_column]
+                # Convert to milliseconds if it's a datetime
+                if hasattr(ts, "timestamp"):
+                    ts = int(ts.timestamp() * 1000)
+                elif isinstance(ts, int | float):
+                    # Assume already in appropriate format
+                    ts = int(ts * 1000) if ts < 1e12 else int(ts)
+            else:
+                ts = int(time * 1000)
+
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "value": value,
+                        "timestamp": ts,
+                    }
+                )
+            )
+
+    pw.io.subscribe(table, on_change=on_change)
 
 
 # =============================================================================

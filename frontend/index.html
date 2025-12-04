@@ -165,8 +165,12 @@
         .table-widget td {
             padding: 8px;
             border-bottom: 1px solid var(--border);
+            transition: background 0.3s;
         }
         .table-widget tr:last-child td { border-bottom: none; }
+        .table-widget tr.row-updated td {
+            background: rgba(0, 212, 255, 0.15);
+        }
         .table-widget .badge {
             display: inline-block;
             padding: 2px 8px;
@@ -391,6 +395,34 @@
             };
         }
 
+        function createPathwayTableWidget(id, config) {
+            // Keyed table for Pathway - rows are updated/deleted by key
+            const div = document.createElement('div');
+            div.className = 'widget table-widget pathway-table';
+            div.id = `widget-${id}`;
+            
+            const columns = config.columns || [];
+            const headerHtml = columns.map(c => `<th>${c.label || c.name}</th>`).join('');
+            
+            div.innerHTML = `
+                <div class="widget-title">${config.title}</div>
+                <table>
+                    <thead><tr>${headerHtml}</tr></thead>
+                    <tbody></tbody>
+                </table>
+            `;
+            widgetsEl.appendChild(div);
+
+            widgets[id] = {
+                type: 'pathway_table',
+                config,
+                element: div,
+                tbody: div.querySelector('tbody'),
+                rowsByKey: {},  // key -> tr element
+                maxRows: config.max_rows || 100
+            };
+        }
+
         function createTextWidget(id, config) {
             const div = document.createElement('div');
             div.className = `widget text-widget style-${config.style || 'body'}`;
@@ -422,6 +454,7 @@
                 else if (type === 'stat') createStatWidget(id, config);
                 else if (type === 'gauge') createGaugeWidget(id, config);
                 else if (type === 'table') createTableWidget(id, config);
+                else if (type === 'pathway_table') createPathwayTableWidget(id, config);
                 else if (type === 'text') createTextWidget(id, config);
             }
 
@@ -443,6 +476,8 @@
                 updateGauge(w, data);
             } else if (w.type === 'table') {
                 updateTable(w, data);
+            } else if (w.type === 'pathway_table') {
+                updatePathwayTable(w, data);
             } else if (w.type === 'text') {
                 w.element.textContent = data.value;
             }
@@ -502,6 +537,67 @@
             // Remove old rows
             while (w.tbody.children.length > w.maxRows) {
                 w.tbody.removeChild(w.tbody.lastChild);
+            }
+        }
+
+        function updatePathwayTable(w, data) {
+            const columns = w.config.columns || [];
+            const key = data.key;
+            
+            if (data.op === 'delete') {
+                // Remove row by key
+                const existingRow = w.rowsByKey[key];
+                if (existingRow) {
+                    existingRow.remove();
+                    delete w.rowsByKey[key];
+                }
+                return;
+            }
+            
+            // Upsert: create or update row
+            const row = data.row;
+            let tr = w.rowsByKey[key];
+            const isNew = !tr;
+            
+            if (isNew) {
+                tr = document.createElement('tr');
+                tr.dataset.key = key;
+                w.rowsByKey[key] = tr;
+            } else {
+                tr.innerHTML = '';  // Clear existing cells
+            }
+            
+            for (const col of columns) {
+                const td = document.createElement('td');
+                const val = row[col.name];
+                
+                if (val === undefined || val === null) {
+                    td.textContent = '';
+                } else if (typeof val === 'number') {
+                    td.textContent = formatValue(val);
+                } else {
+                    td.textContent = String(val);
+                }
+                tr.appendChild(td);
+            }
+            
+            if (isNew) {
+                w.tbody.appendChild(tr);
+            }
+            
+            // Highlight updated row briefly
+            tr.classList.add('row-updated');
+            setTimeout(() => tr.classList.remove('row-updated'), 500);
+            
+            // Enforce max rows (remove oldest)
+            while (Object.keys(w.rowsByKey).length > w.maxRows) {
+                const firstRow = w.tbody.firstChild;
+                if (firstRow && firstRow.dataset.key) {
+                    delete w.rowsByKey[firstRow.dataset.key];
+                    firstRow.remove();
+                } else {
+                    break;
+                }
             }
         }
 

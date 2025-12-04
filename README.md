@@ -1,189 +1,246 @@
 # StreamViz
 
-Real-time streaming data visualization for Python. Build dashboards in seconds with a Streamlit-like API.
+**The visualization layer for [Pathway](https://pathway.com).** Real-time dashboards for streaming data pipelines.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
+## Why StreamViz?
+
+Pathway gives you powerful streaming aggregations. StreamViz makes them visible.
+
+```python
+import pathway as pw
+import stream_viz as sv
+
+# Your Pathway pipeline
+orders = pw.io.kafka.read(...)
+stats = orders.groupby(pw.this.region).reduce(
+    total=pw.reducers.sum(pw.this.amount),
+    count=pw.reducers.count(),
+)
+
+# Visualize it
+sv.title("Order Analytics")
+sv.pathway_table(stats, 
+    columns=["region", "total", "count"],
+    title="Orders by Region"
+)
+sv.start()
+pw.run()
+```
+
+That's it. Your Pathway aggregations, live in a dashboard.
+
 ## Features
 
-- **Simple** — Streamlit-like API: just `sv.metric()` and `.send()`
-- **Fast** — Rust-powered WebSocket server handles thousands of messages/sec
-- **Zero config** — No JavaScript, no build step, just `pip install` and go
-- **Multi-chart** — Each metric gets its own auto-scaling chart
-- **Batteries included** — Works with Kafka, Redpanda, Pathway, or plain Python
+- **Pathway-native** — Direct integration with `pw.Table` outputs
+- **Zero config** — No JavaScript, no build step, just `pip install`
+- **Real-time** — See aggregations update as data flows
+- **Fast** — Rust WebSocket server handles high throughput
+- **Rich widgets** — Tables, gauges, stats, time series charts
 
 ## Quick Start
 
 ```bash
-# Install
-pip install stream-viz
+pip install stream-viz pathway
 
-# Run the demo
-python -m stream_viz
+# Run the e-commerce demo
+python -m stream_viz ecommerce
 ```
 
-Open <http://localhost:3000> — that's it! 🎉
+Open <http://localhost:3000> — live dashboard showing Pathway aggregations.
 
-## Usage
+## Pathway Integration
+
+### Visualize a Pathway Table
+
+```python
+import pathway as pw
+import stream_viz as sv
+
+# Read from Kafka
+events = pw.io.kafka.read(
+    rdkafka_settings={"bootstrap.servers": "localhost:9092"},
+    topic="events",
+    format="json",
+    schema=EventSchema,
+)
+
+# Pathway aggregations
+hourly_stats = events.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=datetime.timedelta(hours=1)),
+).reduce(
+    count=pw.reducers.count(),
+    total=pw.reducers.sum(pw.this.amount),
+    avg=pw.reducers.avg(pw.this.amount),
+)
+
+# Send to StreamViz
+sv.title("Hourly Analytics")
+sv.pathway_table(hourly_stats, columns=["window_start", "count", "total", "avg"])
+sv.start()
+
+pw.run()
+```
+
+### Track a Single Metric
+
+```python
+# Pathway pipeline that outputs a single row with current totals
+totals = orders.reduce(
+    total_orders=pw.reducers.count(),
+    total_revenue=pw.reducers.sum(pw.this.amount),
+)
+
+# Visualize as gauges/stats
+sv.pathway_stat(totals, column="total_orders", title="Total Orders")
+sv.pathway_stat(totals, column="total_revenue", title="Revenue", unit="$")
+```
+
+### Time Series from Pathway
+
+```python
+# Windowed aggregation
+per_second = events.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=datetime.timedelta(seconds=1)),
+).reduce(
+    rps=pw.reducers.count(),
+)
+
+# Visualize as chart
+sv.pathway_metric(per_second, 
+    time_column="window_start",
+    value_column="rps", 
+    title="Requests/sec"
+)
+```
+
+## Standalone Mode (No Pathway)
+
+StreamViz also works without Pathway for quick visualizations:
 
 ```python
 import stream_viz as sv
-import math
-import time
+import random
 
-# Define your dashboard
-sv.title("My Dashboard")
-cpu = sv.metric("cpu", title="CPU Usage", unit="%")
-memory = sv.metric("memory", title="Memory", unit="%")
+sv.title("System Metrics")
 
-# Start the server
-sv.start(port=3000)
+# Widgets
+cpu = sv.gauge("cpu", title="CPU", unit="%", max_val=100,
+    thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
+    
+rps = sv.metric("rps", title="Requests/sec")
+events = sv.table("events", title="Events", 
+    columns=["time", "level", "message"], max_rows=20)
 
-# Stream data
-i = 0
+sv.start()
+
 while True:
-    cpu.send(50 + 30 * math.sin(i * 0.1))
-    memory.send(60 + 10 * math.cos(i * 0.05))
-    time.sleep(0.05)
-    i += 1
+    cpu.send(random.uniform(30, 90))
+    rps.send(random.randint(100, 500))
+    # ... your data source
 ```
+
+## Widget Types
+
+| Widget | Use Case | Example |
+|--------|----------|---------|
+| `sv.pathway_table()` | Show Pathway table output | Aggregation results, latest state |
+| `sv.pathway_stat()` | Big number from Pathway | Total count, sum, current value |
+| `sv.pathway_metric()` | Time series from Pathway | Windowed aggregations over time |
+| `sv.gauge()` | Bounded value | CPU %, memory, progress |
+| `sv.stat()` | Big number | Totals, counts |
+| `sv.metric()` | Time series | Any numeric over time |
+| `sv.table()` | Streaming rows | Logs, events, records |
 
 ## Demos
 
 ```bash
-python -m stream_viz              # Built-in demo
-python -m stream_viz simple       # Simple waves demo
-python -m stream_viz kafka        # Kafka demo (needs Docker)
-python -m stream_viz ecommerce    # Pathway aggregations
+python -m stream_viz              # Built-in demo (no Pathway needed)
+python -m stream_viz ecommerce    # E-commerce with Pathway + Kafka
+python -m stream_viz kafka        # Kafka consumer
 ```
 
-## With Kafka/Redpanda
+## Installation
 
 ```bash
-# Start Redpanda
-docker compose up -d
+# With Pathway (recommended)
+pip install stream-viz[pathway]
 
-# Terminal 1: Producer
-python examples/producer.py
+# Just StreamViz
+pip install stream-viz
 
-# Terminal 2: Dashboard
-python examples/kafka_demo.py
+# Everything (Pathway + Kafka)
+pip install stream-viz[all]
 ```
 
-```python
-import json
-from kafka import KafkaConsumer
-import stream_viz as sv
-
-sv.title("Kafka Metrics")
-cpu = sv.metric("cpu", title="CPU", unit="%")
-
-sv.start(port=3000)
-
-consumer = KafkaConsumer(
-    "metrics",
-    bootstrap_servers=["localhost:9092"],
-    value_deserializer=lambda m: json.loads(m.decode()),
-)
-
-for msg in consumer:
-    cpu.send(msg.value["cpu"])
-```
-
-## Installation from Source
+### From Source
 
 ```bash
-# Install Rust (if needed)
+# Requires Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Clone and install
 git clone https://github.com/yourusername/stream-viz.git
 cd stream-viz
-
-# Setup with uv (recommended)
-uv venv --python 3.12 .venv
-source .venv/bin/activate.fish  # or: source .venv/bin/activate
+uv venv --python 3.12 .venv && source .venv/bin/activate
 uv pip install maturin && maturin develop
 uv pip install -e ".[all]"
 ```
 
-## Optional Dependencies
-
-| Extra | Description | Install |
-|-------|-------------|---------|
-| `kafka` | Kafka/Redpanda | `pip install stream-viz[kafka]` |
-| `pathway` | Stream processing | `pip install stream-viz[pathway]` |
-| `all` | Everything | `pip install stream-viz[all]` |
-
-Note: Pathway requires Python 3.11-3.13.
-
-## API Reference
-
-### `sv.title(text)`
-
-Set the dashboard title.
-
-### `sv.metric(id, *, title=None, unit="", color=None, max_points=200)`
-
-Create a metric. Returns a `Metric` object.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | str | Unique identifier |
-| `title` | str | Display title (defaults to id) |
-| `unit` | str | Unit label (e.g., "%", "ms") |
-| `color` | str | Hex color (auto-assigned if None) |
-| `max_points` | int | Max points before scrolling |
-
-### `metric.send(value, timestamp=None)`
-
-Send a data point. Timestamp is milliseconds (defaults to now).
-
-### `sv.start(port=3000)`
-
-Start the server. Non-blocking.
-
-### `sv.run_demo(port=3000)`
-
-Run the built-in demo. Blocks forever.
-
 ## Architecture
 
-```text
+```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Python                                                         │
+│  Pathway Pipeline                                               │
 │                                                                 │
-│  sv.metric("cpu")  ──────────────┐                             │
-│  cpu.send(75.5)  ────────────────┼──▶  WebSocket broadcast     │
-│                                  │                              │
-└──────────────────────────────────┼──────────────────────────────┘
-                                   │
-                                   ▼
+│  events.groupby().reduce()  ─────▶  sv.pathway_table(stats)    │
+│                                            │                    │
+└────────────────────────────────────────────┼────────────────────┘
+                                             │
+                                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Rust (Axum + Tokio)                                            │
-│  • WebSocket server on background thread                        │
-│  • Embedded frontend (no external files!)                       │
-└──────────────────────────────────┬──────────────────────────────┘
-                                   │
-                                   ▼
+│  StreamViz (Rust)                                               │
+│  • WebSocket server with history buffer                         │
+│  • Embedded dashboard (no external files)                       │
+│  • Handles 10k+ messages/sec                                    │
+└────────────────────────────────────────────┬────────────────────┘
+                                             │
+                                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  Browser                                                        │
-│  • Creates charts dynamically from config                       │
-│  • Auto-reconnects on disconnect                                │
+│  Browser Dashboard                                              │
+│  • Live-updating tables, charts, gauges                         │
+│  • Auto-reconnect on disconnect                                 │
+│  • New connections see existing data                            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Development
+## Why Not Just Use...?
 
-```bash
-git clone https://github.com/yourusername/stream-viz.git
-cd stream-viz
-uv venv --python 3.12 .venv && source .venv/bin/activate.fish
-uv pip install maturin && maturin develop
-uv pip install -e ".[dev]"
-pytest
-```
+| Alternative | Limitation |
+|-------------|------------|
+| **Grafana** | Requires infrastructure, PromQL, not Python-native |
+| **Streamlit** | Request-response model, not designed for streaming |
+| **Jupyter** | Great for exploration, not for live dashboards |
+| **Print statements** | No visualization, hard to share |
+
+StreamViz is purpose-built for streaming Python pipelines, especially Pathway.
+
+## Roadmap
+
+- [x] Core widget types (gauge, stat, metric, table)
+- [x] Rust WebSocket server with history buffer
+- [ ] `sv.pathway_table()` — direct Pathway integration
+- [ ] `sv.pathway_output()` — subscribe to Pathway table changes
+- [ ] Interactive features (pause, time range, zoom)
+- [ ] Theming and layout customization
+- [ ] Export/snapshot dashboards
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
 ## License
 
