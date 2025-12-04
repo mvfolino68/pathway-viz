@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamViz</title>
+    <link rel="stylesheet" href="https://unpkg.com/uplot@1.6.30/dist/uPlot.min.css">
+    <script src="https://unpkg.com/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #0f0f1a;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #status.connected {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+        }
+
+        #status.disconnected {
+            background: rgba(255, 68, 68, 0.1);
+            color: #ff4444;
+        }
+
+        #status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #charts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            #charts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+            min-height: 220px;
+            overflow: hidden;
+        }
+
+        .chart-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-value {
+            font-size: 2rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        .chart-unit {
+            font-size: 0.9rem;
+            color: #666;
+            margin-left: 4px;
+        }
+
+        .chart-container {
+            margin-top: 12px;
+        }
+
+        .u-legend { display: none; }
+
+        #waiting {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            color: #666;
+        }
+
+        #waiting .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            justify-content: center;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 id="dashboard-title">StreamViz</h1>
+        <div id="status" class="disconnected">Connecting</div>
+    </header>
+
+    <div id="waiting">
+        <div class="spinner"></div>
+        <div>Waiting for metrics...</div>
+    </div>
+
+    <div id="charts"></div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value" id="msg-rate">0</div>
+            <div class="stat-label">msg/sec</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="total-msgs">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="uptime">0s</div>
+            <div class="stat-label">Uptime</div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const metrics = {};  // metric_id -> { config, data, uplot, element }
+        let messageCount = 0;
+        let messagesLastSecond = 0;
+        let lastRateUpdate = Date.now();
+        const startTime = Date.now();
+
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const titleEl = document.getElementById('dashboard-title');
+        const chartsEl = document.getElementById('charts');
+        const waitingEl = document.getElementById('waiting');
+        const msgRateEl = document.getElementById('msg-rate');
+        const totalMsgsEl = document.getElementById('total-msgs');
+        const uptimeEl = document.getElementById('uptime');
+
+        function createChart(metricId, config) {
+            // Create card element
+            const card = document.createElement('div');
+            card.className = 'chart-card';
+            card.id = `chart-${metricId}`;
+            card.innerHTML = `
+                <div class="chart-header">
+                    <div class="chart-title">${config.title}</div>
+                    <div>
+                        <span class="chart-value" style="color: ${config.color}">--</span>
+                        <span class="chart-unit">${config.unit}</span>
+                    </div>
+                </div>
+                <div class="chart-container"></div>
+            `;
+            chartsEl.appendChild(card);
+
+            // Initialize data arrays
+            const timeData = [];
+            const valueData = [];
+
+            // Create uPlot with proper time axis
+            const container = card.querySelector('.chart-container');
+            const width = container.offsetWidth || 500;
+
+            const opts = {
+                width: width,
+                height: 140,
+                series: [
+                    {},
+                    {
+                        stroke: config.color,
+                        width: 2,
+                        fill: config.color + "15",
+                    }
+                ],
+                scales: {
+                    x: { time: true },  // Enable time scale
+                    y: { auto: true },
+                },
+                axes: [
+                    {
+                        stroke: "#555",
+                        grid: { stroke: "rgba(255,255,255,0.03)" },
+                        ticks: { stroke: "#444" },
+                        font: "10px sans-serif",
+                        size: 25,
+                        // Show time as seconds ago or HH:MM:SS
+                        values: (u, vals) => vals.map(v => {
+                            const d = new Date(v * 1000);
+                            return d.toLocaleTimeString('en-US', { 
+                                hour12: false, 
+                                hour: '2-digit', 
+                                minute: '2-digit', 
+                                second: '2-digit' 
+                            });
+                        }),
+                    },
+                    {
+                        stroke: "#555",
+                        grid: { stroke: "rgba(255,255,255,0.05)" },
+                        ticks: { stroke: "#444" },
+                        font: "10px sans-serif",
+                        size: 50,
+                        values: (u, vals) => vals.map(v => {
+                            if (v >= 1000) return (v/1000).toFixed(1) + 'k';
+                            if (v >= 100) return v.toFixed(0);
+                            if (v >= 10) return v.toFixed(1);
+                            return v.toFixed(2);
+                        }),
+                    }
+                ],
+                cursor: { show: true },
+                legend: { show: false },
+            };
+
+            const uplot = new uPlot(opts, [timeData, valueData], container);
+
+            metrics[metricId] = {
+                config,
+                timeData,
+                valueData,
+                uplot,
+                element: card,
+                valueEl: card.querySelector('.chart-value'),
+            };
+
+            // Hide waiting message
+            waitingEl.style.display = 'none';
+        }
+
+        function handleConfig(data) {
+            titleEl.textContent = data.title;
+            document.title = data.title;
+
+            for (const [id, config] of Object.entries(data.metrics)) {
+                if (!metrics[id]) {
+                    createChart(id, config);
+                }
+            }
+        }
+
+        function handleData(data) {
+            const metric = metrics[data.metric];
+            if (!metric) return;
+
+            messageCount++;
+            messagesLastSecond++;
+
+            // Convert milliseconds to seconds for uPlot time axis
+            const timestampSec = data.timestamp / 1000;
+
+            // Ring buffer - keep max_points
+            if (metric.timeData.length >= metric.config.max_points) {
+                metric.timeData.shift();
+                metric.valueData.shift();
+            }
+
+            metric.timeData.push(timestampSec);
+            metric.valueData.push(data.value);
+
+            metric.uplot.setData([metric.timeData, metric.valueData]);
+
+            // Update current value display
+            let displayValue = data.value;
+            if (displayValue >= 1000) {
+                displayValue = (displayValue / 1000).toFixed(1) + 'k';
+            } else if (displayValue >= 100) {
+                displayValue = displayValue.toFixed(0);
+            } else if (displayValue >= 10) {
+                displayValue = displayValue.toFixed(1);
+            } else {
+                displayValue = displayValue.toFixed(2);
+            }
+            metric.valueEl.textContent = displayValue;
+        }
+
+        function updateStats() {
+            const now = Date.now();
+
+            // Update rate
+            if (now - lastRateUpdate >= 1000) {
+                msgRateEl.textContent = messagesLastSecond;
+                messagesLastSecond = 0;
+                lastRateUpdate = now;
+            }
+
+            // Update total
+            totalMsgsEl.textContent = messageCount.toLocaleString();
+
+            // Update uptime
+            const uptime = Math.floor((now - startTime) / 1000);
+            if (uptime < 60) {
+                uptimeEl.textContent = uptime + 's';
+            } else if (uptime < 3600) {
+                uptimeEl.textContent = Math.floor(uptime / 60) + 'm';
+            } else {
+                uptimeEl.textContent = Math.floor(uptime / 3600) + 'h';
+            }
+
+            requestAnimationFrame(updateStats);
+        }
+        requestAnimationFrame(updateStats);
+
+        let configReceived = false;
+
+        function connect() {
+            const ws = new WebSocket(`ws://${location.host}/ws`);
+
+            ws.onopen = () => {
+                statusEl.className = 'connected';
+                statusEl.textContent = 'Live';
+            };
+
+            ws.onclose = () => {
+                statusEl.className = 'disconnected';
+                statusEl.textContent = 'Reconnecting';
+                configReceived = false;
+                setTimeout(connect, 2000);
+            };
+
+            ws.onerror = () => ws.close();
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'config') {
+                    configReceived = true;
+                    handleConfig(data);
+                } else if (data.type === 'data') {
+                    // If we get data but no config yet, the metric will be unknown
+                    // but that's okay - config will come and create the chart
+                    handleData(data);
+                }
+            };
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            for (const metric of Object.values(metrics)) {
+                const container = metric.element.querySelector('.chart-container');
+                const width = Math.min(container.offsetWidth || 380, 500);
+                metric.uplot.setSize({ width, height: 150 });
+            }
+        });
+
+        connect();
+    </script>
+</body>
+</html>

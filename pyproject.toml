@@ -1,0 +1,70 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "stream-viz"
+version = "0.1.0"
+description = "Real-time streaming data visualization for Kafka, Redpanda, and Python"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["streaming", "visualization", "kafka", "redpanda", "real-time", "dashboard"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: System :: Monitoring",
+]
+
+[project.optional-dependencies]
+# Kafka/Redpanda streaming support
+kafka = ["kafka-python-ng>=2.0"]
+
+# Stream processing with Pathway (requires Python <3.14 for now)
+# Note: pathway depends on pyarrow which doesn't support Python 3.14 yet
+pathway = [
+    "pathway>=0.8; python_version<'3.14'",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+    "maturin>=1.0,<2.0",
+]
+
+# All optional features (for demos)
+all = [
+    "kafka-python-ng>=2.0",
+    "pathway>=0.8; python_version<'3.14'",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/stream-viz"
+Repository = "https://github.com/yourusername/stream-viz"
+Documentation = "https://github.com/yourusername/stream-viz#readme"
+Issues = "https://github.com/yourusername/stream-viz/issues"
+
+[tool.maturin]
+python-source = "python"
+module-name = "stream_viz._stream_viz"
+features = ["pyo3/extension-module"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

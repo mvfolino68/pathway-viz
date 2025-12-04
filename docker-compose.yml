@@ -1,0 +1,52 @@
+# StreamViz Demo Infrastructure
+#
+# This sets up a Redpanda cluster (Kafka-compatible) for the streaming demo.
+#
+# Usage:
+#   docker compose up -d        # Start Redpanda
+#   docker compose logs -f      # View logs
+#   docker compose down -v      # Stop and clean up
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.4
+    container_name: streamviz-redpanda
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://localhost:9092
+    ports:
+      - "9092:9092"    # Kafka API
+      - "9644:9644"    # Admin API
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Create topics on startup
+  init-topics:
+    image: redpandadata/redpanda:v24.2.4
+    container_name: streamviz-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        rpk topic create metrics \
+          --brokers redpanda:29092 \
+          --partitions 1 \
+          --replicas 1 || true
+        rpk topic create orders \
+          --brokers redpanda:29092 \
+          --partitions 1 \
+          --replicas 1 || true
+        echo "Topics created successfully"
+    restart: "no"
