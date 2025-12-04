@@ -38,16 +38,16 @@ def generate_order() -> dict:
     product_name = random.choice(list(PRODUCTS.keys()))
     product = PRODUCTS[product_name]
     quantity = random.choices([1, 2, 3, 4, 5], weights=[50, 25, 15, 7, 3])[0]
-    
+
     # Add some discount randomness
     discount = 0
     if random.random() < 0.2:  # 20% of orders have discounts
         discount = random.choice([0.1, 0.15, 0.2, 0.25])
-    
+
     subtotal = product["price"] * quantity
     discount_amount = subtotal * discount
     total = subtotal - discount_amount
-    
+
     return {
         "order_id": str(uuid.uuid4())[:8],
         "timestamp": int(time.time() * 1000),
@@ -78,7 +78,7 @@ def main():
         while True:
             # Simulate variable order rate (busier during "peak" times)
             burst = random.random() < 0.1  # 10% chance of order burst
-            
+
             order = generate_order()
             producer.send("orders", order)
             order_count += 1

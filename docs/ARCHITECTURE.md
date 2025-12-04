@@ -1,0 +1,250 @@
+# StreamViz Architecture: Embeddable Pathway Visualization
+
+## Key Insight
+
+Pathway already has `table.plot()` and `table.show()` for **Jupyter notebooks**.
+StreamViz should focus on **production dashboards** and **embeddable widgets**.
+
+## Two Modes
+
+### 1. Standalone Dashboard Mode (Current)
+
+```python
+import stream_viz as sv
+
+sv.title("Analytics")
+sv.pathway_table(my_table)
+sv.start()
+pw.run()
+```
+
+Opens full dashboard at localhost:3000
+
+### 2. Embed Mode (NEW)
+
+```python
+import stream_viz as sv
+
+# Get embeddable HTML/JS snippet
+embed = sv.embed(my_table, widget="table", height=400)
+print(embed.html)  # <iframe src="..."> or <script>...</script>
+
+# Or serve widgets on specific routes
+sv.serve("/api/orders", my_table)
+sv.serve("/api/stats", totals_table)
+sv.start()
+```
+
+## Embed Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Your Web App (React, Vue, plain HTML)                              │
+│                                                                     │
+│  <StreamVizWidget                                                   │
+│     src="http://localhost:3000/embed/orders"                        │
+│     type="table"                                                    │
+│  />                                                                 │
+│                                                                     │
+│  OR                                                                 │
+│                                                                     │
+│  <iframe src="http://localhost:3000/embed/orders?height=400" />     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼ WebSocket
+┌─────────────────────────────────────────────────────────────────────┐
+│  StreamViz Server (Rust)                                            │
+│                                                                     │
+│  Routes:                                                            │
+│    /                     → Full dashboard                           │
+│    /embed/:widget_id     → Single widget (embeddable)               │
+│    /ws                   → WebSocket for full dashboard             │
+│    /ws/:widget_id        → WebSocket for single widget              │
+│    /api/config           → JSON config for widgets                  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │ pw.io.subscribe
+┌─────────────────────────────────────────────────────────────────────┐
+│  Pathway Pipeline                                                   │
+│                                                                     │
+│  sv.pathway_table(orders_table, id="orders")                        │
+│  sv.pathway_stat(totals, column="revenue", id="revenue")            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## JavaScript Embed Library
+
+```html
+<!-- Option 1: Script tag -->
+<script src="http://localhost:3000/streamviz.js"></script>
+<div id="orders-widget"></div>
+<script>
+  StreamViz.connect("http://localhost:3000");
+  StreamViz.table("orders-widget", { widget: "orders", height: 400 });
+</script>
+
+<!-- Option 2: Web Component -->
+<script type="module" src="http://localhost:3000/streamviz.js"></script>
+<streamviz-table src="http://localhost:3000" widget="orders" height="400">
+</streamviz-table>
+
+<!-- Option 3: iframe (simplest) -->
+<iframe
+  src="http://localhost:3000/embed/orders?theme=dark&height=400"
+  style="border:none; width:100%; height:400px;">
+</iframe>
+```
+
+## Pathway-Native API Design
+
+```python
+import pathway as pw
+import stream_viz as sv
+
+# Read from Kafka
+orders = pw.io.kafka.read(...)
+
+# Pathway aggregations
+by_region = orders.groupby(pw.this.region).reduce(
+    region=pw.this.region,
+    revenue=pw.reducers.sum(pw.this.amount),
+    count=pw.reducers.count(),
+    avg_order=pw.reducers.avg(pw.this.amount),
+)
+
+totals = orders.reduce(
+    total_revenue=pw.reducers.sum(pw.this.amount),
+    total_orders=pw.reducers.count(),
+)
+
+# Windowed aggregations
+per_minute = orders.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=timedelta(minutes=1)),
+).reduce(
+    window_start=pw.this._pw_window_start,
+    window_end=pw.this._pw_window_end,
+    count=pw.reducers.count(),
+    revenue=pw.reducers.sum(pw.this.amount),
+)
+
+# === StreamViz Dashboard ===
+
+sv.configure(
+    title="E-Commerce Analytics",
+    theme="dark",
+    embed=True,  # Enable embed endpoints
+)
+
+# Tables - keyed by Pathway pointer, updates in place
+sv.table(by_region,
+    id="by_region",
+    title="Revenue by Region",
+    columns=["region", "revenue", "count", "avg_order"],
+    sort_by="revenue",
+    sort_desc=True,
+)
+
+# Stats - single values with delta
+sv.stat(totals, "total_revenue",
+    id="revenue",
+    title="Total Revenue",
+    unit="$",
+    format=",.2f",
+)
+
+sv.stat(totals, "total_orders",
+    id="orders",
+    title="Total Orders",
+)
+
+# Time series from windowed aggregations
+sv.chart(per_minute,
+    id="rps",
+    title="Orders/min",
+    x="window_end",
+    y="count",
+    chart_type="line",
+)
+
+sv.chart(per_minute,
+    id="revenue_chart",
+    title="Revenue/min",
+    x="window_end",
+    y="revenue",
+    chart_type="area",
+)
+
+# Gauges for bounded metrics
+sv.gauge(some_table, "cpu_usage",
+    id="cpu",
+    title="CPU",
+    min=0, max=100,
+    thresholds=[(50, "green"), (80, "yellow"), (100, "red")],
+)
+
+# Start server
+sv.start(port=3000)
+
+# Run Pathway
+pw.run()
+```
+
+## Supported Pathway Features
+
+### Reducers → Widget Mapping
+
+| Reducer | Best Widget |
+|---------|-------------|
+| `count()` | stat, chart |
+| `sum()` | stat, chart |
+| `avg()` | stat, gauge, chart |
+| `min()` | stat |
+| `max()` | stat |
+| `count_distinct()` | stat |
+| `earliest()` | stat (timestamp) |
+| `latest()` | stat (timestamp) |
+
+### Windowing → Chart Types
+
+| Window Type | Best Visualization |
+|-------------|-------------------|
+| Tumbling | Line/bar chart |
+| Sliding | Line chart (smoothed) |
+| Session | Event timeline |
+
+### Table Operations
+
+| Operation | Support |
+|-----------|---------|
+| `groupby().reduce()` | ✅ Table with keyed rows |
+| `reduce()` | ✅ Single-row → stat/gauge |
+| `windowby()` | ✅ Time series chart |
+| `filter()` | ✅ Works transparently |
+| `select()` | ✅ Choose columns |
+| `join()` | ✅ Works transparently |
+
+## Implementation Plan
+
+1. **Rust Server Changes**
+   - Add `/embed/:widget_id` route serving single-widget HTML
+   - Add `/ws/:widget_id` for widget-specific WebSocket
+   - Add `/streamviz.js` for JS embed library
+
+2. **Python API Changes**
+   - Rename to `sv.table()`, `sv.stat()`, `sv.chart()`, `sv.gauge()`
+   - First argument is always a Pathway table
+   - Remove standalone widgets (metric, etc.) - always Pathway-backed
+
+3. **Frontend Changes**
+   - Create embed.html - minimal single-widget page
+   - Create streamviz.js - JavaScript library for embedding
+   - Web component wrapper
+
+4. **Remove Non-Pathway Code**
+   - Remove TumblingWindow (Pathway has this)
+   - Remove manual aggregations
+   - Remove standalone demo widgets

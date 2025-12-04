@@ -1,5 +1,5 @@
 //! State management for StreamViz
-//! 
+//!
 //! Handles ring buffers for widget data, allowing new connections
 //! to receive historical data immediately.
 
@@ -42,7 +42,7 @@ impl WidgetBuffer {
     pub fn get_all(&self) -> Vec<DataPoint> {
         self.data.iter().cloned().collect()
     }
-    
+
     pub fn len(&self) -> usize {
         self.data.len()
     }

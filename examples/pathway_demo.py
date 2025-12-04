@@ -8,7 +8,7 @@ on e-commerce data and visualize them with StreamViz.
 Pathway computes running totals across all orders:
 - Total Revenue (running sum)
 - Order Count
-- Average Order Value  
+- Average Order Value
 - Electronics Revenue (category filter)
 
 Requirements:
@@ -31,7 +31,6 @@ import threading
 import time
 
 import pathway as pw
-
 import stream_viz as sv
 
 

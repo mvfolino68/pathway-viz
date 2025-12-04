@@ -1,6 +1,6 @@
 # StreamViz
 
-**The visualization layer for [Pathway](https://pathway.com).** Real-time dashboards for streaming data pipelines.
+**The visualization layer for [Pathway](https://pathway.com).** Real-time dashboards and embeddable widgets for streaming data pipelines.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -16,16 +16,13 @@ import stream_viz as sv
 # Your Pathway pipeline
 orders = pw.io.kafka.read(...)
 stats = orders.groupby(pw.this.region).reduce(
-    total=pw.reducers.sum(pw.this.amount),
+    revenue=pw.reducers.sum(pw.this.amount),
     count=pw.reducers.count(),
 )
 
-# Visualize it
+# Visualize it - one line per widget
 sv.title("Order Analytics")
-sv.pathway_table(stats, 
-    columns=["region", "total", "count"],
-    title="Orders by Region"
-)
+sv.table(stats, title="Orders by Region")
 sv.start()
 pw.run()
 ```
@@ -34,213 +31,254 @@ That's it. Your Pathway aggregations, live in a dashboard.
 
 ## Features
 
-- **Pathway-native** — Direct integration with `pw.Table` outputs
+- **Pathway-native** — Pass Pathway tables directly to widgets
 - **Zero config** — No JavaScript, no build step, just `pip install`
-- **Real-time** — See aggregations update as data flows
+- **Real-time** — Widgets update as data flows through Pathway
 - **Fast** — Rust WebSocket server handles high throughput
-- **Rich widgets** — Tables, gauges, stats, time series charts
+- **Embeddable** — Embed individual widgets in your own web apps
+- **Rich widgets** — Tables, charts, gauges, and stats
 
 ## Quick Start
 
 ```bash
-pip install stream-viz pathway
+pip install stream-viz
 
-# Run the e-commerce demo
-python -m stream_viz ecommerce
+# Run the interactive demo
+python -m stream_viz
 ```
 
-Open <http://localhost:3000> — live dashboard showing Pathway aggregations.
-
-## Pathway Integration
-
-### Visualize a Pathway Table
-
-```python
-import pathway as pw
-import stream_viz as sv
-
-# Read from Kafka
-events = pw.io.kafka.read(
-    rdkafka_settings={"bootstrap.servers": "localhost:9092"},
-    topic="events",
-    format="json",
-    schema=EventSchema,
-)
-
-# Pathway aggregations
-hourly_stats = events.windowby(
-    pw.this.timestamp,
-    window=pw.temporal.tumbling(duration=datetime.timedelta(hours=1)),
-).reduce(
-    count=pw.reducers.count(),
-    total=pw.reducers.sum(pw.this.amount),
-    avg=pw.reducers.avg(pw.this.amount),
-)
-
-# Send to StreamViz
-sv.title("Hourly Analytics")
-sv.pathway_table(hourly_stats, columns=["window_start", "count", "total", "avg"])
-sv.start()
-
-pw.run()
-```
-
-### Track a Single Metric
-
-```python
-# Pathway pipeline that outputs a single row with current totals
-totals = orders.reduce(
-    total_orders=pw.reducers.count(),
-    total_revenue=pw.reducers.sum(pw.this.amount),
-)
-
-# Visualize as gauges/stats
-sv.pathway_stat(totals, column="total_orders", title="Total Orders")
-sv.pathway_stat(totals, column="total_revenue", title="Revenue", unit="$")
-```
-
-### Time Series from Pathway
-
-```python
-# Windowed aggregation
-per_second = events.windowby(
-    pw.this.timestamp,
-    window=pw.temporal.tumbling(duration=datetime.timedelta(seconds=1)),
-).reduce(
-    rps=pw.reducers.count(),
-)
-
-# Visualize as chart
-sv.pathway_metric(per_second, 
-    time_column="window_start",
-    value_column="rps", 
-    title="Requests/sec"
-)
-```
-
-## Standalone Mode (No Pathway)
-
-StreamViz also works without Pathway for quick visualizations:
-
-```python
-import stream_viz as sv
-import random
-
-sv.title("System Metrics")
-
-# Widgets
-cpu = sv.gauge("cpu", title="CPU", unit="%", max_val=100,
-    thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
-    
-rps = sv.metric("rps", title="Requests/sec")
-events = sv.table("events", title="Events", 
-    columns=["time", "level", "message"], max_rows=20)
-
-sv.start()
-
-while True:
-    cpu.send(random.uniform(30, 90))
-    rps.send(random.randint(100, 500))
-    # ... your data source
-```
+Open <http://localhost:3000> — live dashboard with demo data.
 
 ## Widget Types
 
-| Widget | Use Case | Example |
-|--------|----------|---------|
-| `sv.pathway_table()` | Show Pathway table output | Aggregation results, latest state |
-| `sv.pathway_stat()` | Big number from Pathway | Total count, sum, current value |
-| `sv.pathway_metric()` | Time series from Pathway | Windowed aggregations over time |
-| `sv.gauge()` | Bounded value | CPU %, memory, progress |
-| `sv.stat()` | Big number | Totals, counts |
-| `sv.metric()` | Time series | Any numeric over time |
-| `sv.table()` | Streaming rows | Logs, events, records |
+### Table — Live Updating Rows
 
-## Demos
+```python
+# From Pathway table (auto-updates)
+by_region = orders.groupby(pw.this.region).reduce(...)
+sv.table(by_region, title="By Region", columns=["region", "revenue", "count"])
 
-```bash
-python -m stream_viz              # Built-in demo (no Pathway needed)
-python -m stream_viz ecommerce    # E-commerce with Pathway + Kafka
-python -m stream_viz kafka        # Kafka consumer
+# Manual mode (for non-Pathway sources)
+events = sv.table("events", title="Events", columns=["time", "level", "msg"])
+events.send({"time": "12:00", "level": "INFO", "msg": "Started"})
+```
+
+### Stat — Big Numbers
+
+```python
+# From Pathway (single-row table)
+totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
+sv.stat(totals, "revenue", title="Total Revenue", unit="$")
+
+# Manual mode
+visitors = sv.stat("visitors", title="Active Visitors")
+visitors.send(1234)
+```
+
+### Chart — Time Series
+
+```python
+# From Pathway windowed aggregation
+per_minute = orders.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=timedelta(minutes=1))
+).reduce(count=pw.reducers.count())
+
+sv.chart(per_minute, "count", x_column="window_end", title="Orders/min")
+
+# Manual mode
+cpu = sv.chart("cpu", title="CPU Usage", unit="%")
+cpu.send(72.5)
+```
+
+### Gauge — Bounded Values
+
+```python
+# From Pathway
+sv.gauge(system_stats, "cpu", title="CPU", max_val=100, unit="%",
+         thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
+
+# Manual mode
+cpu = sv.gauge("cpu", title="CPU", max_val=100, unit="%")
+cpu.send(72)
+```
+
+## Pathway Integration
+
+StreamViz works seamlessly with Pathway's streaming primitives:
+
+### Reducers → Stats/Gauges
+
+```python
+totals = orders.reduce(
+    total_orders=pw.reducers.count(),
+    total_revenue=pw.reducers.sum(pw.this.amount),
+    avg_order=pw.reducers.avg(pw.this.amount),
+)
+
+sv.stat(totals, "total_orders", title="Orders")
+sv.stat(totals, "total_revenue", title="Revenue", unit="$")
+sv.gauge(totals, "avg_order", title="Avg Order", min_val=0, max_val=500)
+```
+
+### GroupBy → Tables
+
+```python
+by_region = orders.groupby(pw.this.region).reduce(
+    region=pw.this.region,
+    revenue=pw.reducers.sum(pw.this.amount),
+    count=pw.reducers.count(),
+)
+
+sv.table(by_region, title="By Region",
+         columns=["region", "revenue", "count"],
+         sort_by="revenue")
+```
+
+### Windowing → Charts
+
+```python
+per_second = orders.windowby(
+    pw.this.timestamp,
+    window=pw.temporal.tumbling(duration=timedelta(seconds=1))
+).reduce(
+    window_end=pw.this._pw_window_end,
+    rps=pw.reducers.count(),
+)
+
+sv.chart(per_second, "rps", x_column="window_end", title="Orders/sec")
+```
+
+## Embeddable Widgets
+
+Embed individual widgets in your own web applications:
+
+```python
+import stream_viz as sv
+
+# Enable embedding
+sv.configure(embed=True)
+
+# Create widgets with IDs
+sv.table(by_region, id="regions", embed=True)
+sv.stat(totals, "revenue", id="revenue", embed=True)
+
+sv.start(port=3000)
+pw.run()
+```
+
+Then embed in your HTML:
+
+```html
+<!-- Option 1: iframe (simplest) -->
+<iframe
+    src="http://localhost:3000/embed/regions"
+    style="border: none; width: 100%; height: 400px;">
+</iframe>
+
+<!-- Option 2: Multiple widgets -->
+<iframe src="http://localhost:3000/embed/revenue"></iframe>
+<iframe src="http://localhost:3000/embed/regions"></iframe>
+```
+
+## API Reference
+
+### Configuration
+
+```python
+sv.configure(
+    title="My Dashboard",     # Dashboard title
+    theme="dark",             # "dark" or "light"
+    port=3000,                # Server port
+    embed=True,               # Enable embed endpoints
+)
+
+sv.title("Dashboard Title")   # Shortcut for title
+sv.start(port=3000)           # Start server
+```
+
+### Widgets
+
+All widgets accept either a Pathway table or a string ID for manual mode.
+
+```python
+# Pathway mode - auto-updates from table changes
+sv.table(pw_table, ...)
+sv.stat(pw_table, column, ...)
+sv.chart(pw_table, y_column, ...)
+sv.gauge(pw_table, column, ...)
+
+# Manual mode - returns object with .send() method
+widget = sv.table("id", ...)
+widget.send(data)
+```
+
+### Common Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `id` | Widget identifier (for embedding) |
+| `title` | Display title |
+| `embed` | Enable embed endpoint for this widget |
+
+## Standalone Mode (No Pathway)
+
+StreamViz works without Pathway for simple dashboards:
+
+```python
+import stream_viz as sv
+import math
+
+sv.title("System Monitor")
+
+cpu = sv.gauge("cpu", title="CPU", max_val=100, unit="%")
+mem = sv.gauge("mem", title="Memory", max_val=100, unit="%")
+history = sv.chart("history", title="CPU History", unit="%")
+
+sv.start()
+
+i = 0
+while True:
+    val = 50 + 30 * math.sin(i * 0.05)
+    cpu.send(val)
+    history.send(val)
+    mem.send(60 + 10 * math.sin(i * 0.02))
+    time.sleep(0.1)
+    i += 1
+```
+
+## Architecture
+
+StreamViz consists of:
+
+1. **Python API** — High-level widget definitions
+2. **Rust Server** — WebSocket server for real-time updates (via PyO3)
+3. **Frontend** — Embedded HTML/JS dashboard (no build step)
+
+Data flow:
+
+```text
+Pathway Table → pw.io.subscribe → Python → Rust WebSocket → Browser
 ```
 
 ## Installation
 
 ```bash
-# With Pathway (recommended)
-pip install stream-viz[pathway]
-
-# Just StreamViz
+# PyPI (when published)
 pip install stream-viz
 
-# Everything (Pathway + Kafka)
-pip install stream-viz[all]
-```
-
-### From Source
-
-```bash
-# Requires Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-git clone https://github.com/yourusername/stream-viz.git
+# Development
+git clone https://github.com/yourname/stream-viz
 cd stream-viz
-uv venv --python 3.12 .venv && source .venv/bin/activate
-uv pip install maturin && maturin develop
-uv pip install -e ".[all]"
+pip install maturin
+maturin develop
 ```
 
-## Architecture
+Requires:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Pathway Pipeline                                               │
-│                                                                 │
-│  events.groupby().reduce()  ─────▶  sv.pathway_table(stats)    │
-│                                            │                    │
-└────────────────────────────────────────────┼────────────────────┘
-                                             │
-                                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  StreamViz (Rust)                                               │
-│  • WebSocket server with history buffer                         │
-│  • Embedded dashboard (no external files)                       │
-│  • Handles 10k+ messages/sec                                    │
-└────────────────────────────────────────────┬────────────────────┘
-                                             │
-                                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Browser Dashboard                                              │
-│  • Live-updating tables, charts, gauges                         │
-│  • Auto-reconnect on disconnect                                 │
-│  • New connections see existing data                            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Why Not Just Use...?
-
-| Alternative | Limitation |
-|-------------|------------|
-| **Grafana** | Requires infrastructure, PromQL, not Python-native |
-| **Streamlit** | Request-response model, not designed for streaming |
-| **Jupyter** | Great for exploration, not for live dashboards |
-| **Print statements** | No visualization, hard to share |
-
-StreamViz is purpose-built for streaming Python pipelines, especially Pathway.
-
-## Roadmap
-
-- [x] Core widget types (gauge, stat, metric, table)
-- [x] Rust WebSocket server with history buffer
-- [ ] `sv.pathway_table()` — direct Pathway integration
-- [ ] `sv.pathway_output()` — subscribe to Pathway table changes
-- [ ] Interactive features (pause, time range, zoom)
-- [ ] Theming and layout customization
-- [ ] Export/snapshot dashboards
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
+- Python 3.11+
+- Rust (for building from source)
+- Pathway (optional, for streaming integration)
 
 ## License
 

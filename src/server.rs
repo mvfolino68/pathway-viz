@@ -1,13 +1,14 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        State,
+        Path, Query, State,
     },
     response::{Html, IntoResponse},
     routing::get,
     Router,
 };
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -35,6 +36,15 @@ struct IncomingMessage {
     timestamp: Option<i64>,
     #[serde(default)]
     value: Option<f64>,
+}
+
+/// Query params for embed endpoint
+#[derive(Debug, Deserialize)]
+struct EmbedQuery {
+    #[serde(default)]
+    height: Option<u32>,
+    #[serde(default)]
+    theme: Option<String>,
 }
 
 pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
@@ -75,6 +85,7 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
 
     let app = Router::new()
         .route("/", get(serve_frontend))
+        .route("/embed/{widget_id}", get(serve_embed))
         .route("/ws", get(ws_handler))
         .with_state(app_state);
 
@@ -87,6 +98,28 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
 
 async fn serve_frontend() -> impl IntoResponse {
     Html(FRONTEND_HTML)
+}
+
+/// Serve a single widget in embed mode
+async fn serve_embed(Path(widget_id): Path<String>) -> impl IntoResponse {
+    // Redirect to main page with embed query params
+    // The frontend JavaScript handles the embed mode based on ?widget=xxx
+    let html = FRONTEND_HTML.replace(
+        r#"<body class="dashboard-mode">"#,
+        &format!(r#"<body class="embed-mode" data-widget="{}">"#, widget_id)
+    );
+
+    // Also inject the widget param into the URL for JS to pick up
+    let html = html.replace(
+        "const params = new URLSearchParams(window.location.search);",
+        &format!(
+            r#"const params = new URLSearchParams(window.location.search);
+        params.set('widget', '{}');"#,
+            widget_id
+        )
+    );
+
+    Html(html)
 }
 
 async fn ws_handler(

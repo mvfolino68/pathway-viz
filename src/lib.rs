@@ -34,7 +34,7 @@ fn start_server(port: u16) -> PyResult<()> {
     }
 
     let tx = state.tx.clone();
-    
+
     let handle = thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {

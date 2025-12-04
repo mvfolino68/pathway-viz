@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        
+
         :root {
             --bg: #0f0f1a;
             --surface: rgba(255,255,255,0.03);
@@ -26,7 +26,27 @@
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
+        }
+
+        /* Full dashboard mode */
+        body.dashboard-mode {
             padding: 24px;
+        }
+
+        /* Embed mode - minimal chrome */
+        body.embed-mode {
+            padding: 8px;
+        }
+        body.embed-mode header,
+        body.embed-mode .stats-bar {
+            display: none;
+        }
+        body.embed-mode #widgets {
+            display: block;
+        }
+        body.embed-mode .widget {
+            height: 100%;
+            min-height: auto;
         }
 
         header {
@@ -148,6 +168,9 @@
         .gauge-fill { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 0.3s; }
 
         /* Table Widget */
+        .table-widget {
+            overflow-x: auto;
+        }
         .table-widget table {
             width: 100%;
             border-collapse: collapse;
@@ -155,33 +178,56 @@
         }
         .table-widget th {
             text-align: left;
-            padding: 8px;
-            border-bottom: 1px solid var(--border);
+            padding: 10px 12px;
+            border-bottom: 2px solid var(--border);
             color: var(--text-muted);
-            font-weight: 500;
+            font-weight: 600;
             text-transform: uppercase;
             font-size: 0.75rem;
+            letter-spacing: 0.5px;
         }
         .table-widget td {
-            padding: 8px;
+            padding: 10px 12px;
             border-bottom: 1px solid var(--border);
             transition: background 0.3s;
         }
         .table-widget tr:last-child td { border-bottom: none; }
-        .table-widget tr.row-updated td {
-            background: rgba(0, 212, 255, 0.15);
+
+        /* Pathway table - highlight on update */
+        .pathway-table tr.row-highlight td {
+            background: rgba(0, 212, 255, 0.12);
         }
+        .pathway-table tr.row-delete td {
+            background: rgba(255, 107, 107, 0.12);
+            opacity: 0.5;
+        }
+
+        /* Manual table - new row animation */
+        .table-widget:not(.pathway-table) tr {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .table-widget .badge {
             display: inline-block;
-            padding: 2px 8px;
+            padding: 3px 10px;
             border-radius: 4px;
             font-size: 0.75rem;
-            font-weight: 500;
+            font-weight: 600;
         }
         .badge-ERROR { background: rgba(255,107,107,0.2); color: var(--error); }
         .badge-WARN { background: rgba(255,217,61,0.2); color: var(--warning); }
         .badge-INFO { background: rgba(0,212,255,0.2); color: var(--primary); }
         .badge-DEBUG { background: rgba(255,255,255,0.1); color: var(--text-muted); }
+
+        /* Numeric formatting */
+        .table-widget td.numeric {
+            font-family: 'SF Mono', 'Consolas', monospace;
+            text-align: right;
+        }
 
         /* Text Widget */
         .text-widget { padding: 16px; }
@@ -221,9 +267,17 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         .u-legend { display: none; }
+
+        /* Responsive tweaks */
+        @media (max-width: 600px) {
+            body.dashboard-mode { padding: 12px; }
+            #widgets { gap: 12px; }
+            .widget { padding: 16px; }
+            .stat .value { font-size: 2rem; }
+        }
     </style>
 </head>
-<body>
+<body class="dashboard-mode">
     <header>
         <h1 id="title">StreamViz</h1>
         <div id="status" class="disconnected">Connecting</div>
@@ -252,6 +306,19 @@
     </div>
 
     <script>
+        // =================================================================
+        // Configuration & State
+        // =================================================================
+
+        const params = new URLSearchParams(window.location.search);
+        const embedWidget = params.get('widget');  // Single widget embed mode
+        const embedMode = params.get('embed') === 'true' || embedWidget !== null;
+
+        if (embedMode) {
+            document.body.classList.remove('dashboard-mode');
+            document.body.classList.add('embed-mode');
+        }
+
         const widgets = {};  // widget_id -> state
         let msgCount = 0;
         let msgsLastSec = 0;
@@ -264,7 +331,7 @@
         const waitingEl = document.getElementById('waiting');
 
         // =================================================================
-        // Widget Renderers
+        // Widget Factory
         // =================================================================
 
         function createMetricWidget(id, config) {
@@ -273,10 +340,10 @@
             div.id = `widget-${id}`;
             div.innerHTML = `
                 <div class="widget-header">
-                    <div class="widget-title">${config.title}</div>
+                    <div class="widget-title">${escapeHtml(config.title)}</div>
                     <div>
                         <span class="current-value" style="color: ${config.color}">--</span>
-                        <span class="unit">${config.unit || ''}</span>
+                        <span class="unit">${escapeHtml(config.unit || '')}</span>
                     </div>
                 </div>
                 <div class="chart-container"></div>
@@ -289,7 +356,7 @@
 
             const opts = {
                 width: container.offsetWidth || 400,
-                height: 120,
+                height: embedMode ? 200 : 120,
                 series: [{}, { stroke: config.color, width: 2, fill: config.color + "15" }],
                 scales: { x: { time: true }, y: { auto: true } },
                 axes: [
@@ -319,7 +386,7 @@
             div.className = 'widget stat';
             div.id = `widget-${id}`;
             div.innerHTML = `
-                <div class="widget-title">${config.title}</div>
+                <div class="widget-title">${escapeHtml(config.title)}</div>
                 <div class="value" style="color: ${config.color}">--</div>
                 <div class="delta"></div>
             `;
@@ -338,21 +405,20 @@
             const div = document.createElement('div');
             div.className = 'widget gauge';
             div.id = `widget-${id}`;
-            
-            // SVG arc gauge
+
             const radius = 60;
             const circumference = Math.PI * radius;
-            
+
             div.innerHTML = `
-                <div class="widget-title">${config.title}</div>
+                <div class="widget-title">${escapeHtml(config.title)}</div>
                 <svg viewBox="0 0 150 90">
                     <path class="gauge-track" d="M 15 75 A 60 60 0 0 1 135 75"/>
-                    <path class="gauge-fill" d="M 15 75 A 60 60 0 0 1 135 75" 
+                    <path class="gauge-fill" d="M 15 75 A 60 60 0 0 1 135 75"
                           stroke="${config.color}"
                           stroke-dasharray="${circumference}"
                           stroke-dashoffset="${circumference}"/>
                 </svg>
-                <div class="gauge-value" style="color: ${config.color}">--<span class="unit">${config.unit || ''}</span></div>
+                <div class="gauge-value" style="color: ${config.color}">--<span class="unit">${escapeHtml(config.unit || '')}</span></div>
             `;
             widgetsEl.appendChild(div);
 
@@ -372,12 +438,14 @@
             const div = document.createElement('div');
             div.className = 'widget table-widget';
             div.id = `widget-${id}`;
-            
+
             const columns = config.columns || [];
-            const headerHtml = columns.map(c => `<th>${c.label || c.name}</th>`).join('');
-            
+            const headerHtml = columns.map(c =>
+                `<th>${escapeHtml(c.label || c.name)}</th>`
+            ).join('');
+
             div.innerHTML = `
-                <div class="widget-title">${config.title}</div>
+                <div class="widget-title">${escapeHtml(config.title)}</div>
                 <table>
                     <thead><tr>${headerHtml}</tr></thead>
                     <tbody></tbody>
@@ -396,16 +464,17 @@
         }
 
         function createPathwayTableWidget(id, config) {
-            // Keyed table for Pathway - rows are updated/deleted by key
             const div = document.createElement('div');
             div.className = 'widget table-widget pathway-table';
             div.id = `widget-${id}`;
-            
+
             const columns = config.columns || [];
-            const headerHtml = columns.map(c => `<th>${c.label || c.name}</th>`).join('');
-            
+            const headerHtml = columns.map(c =>
+                `<th>${escapeHtml(c.label || c.name)}</th>`
+            ).join('');
+
             div.innerHTML = `
-                <div class="widget-title">${config.title}</div>
+                <div class="widget-title">${escapeHtml(config.title)}</div>
                 <table>
                     <thead><tr>${headerHtml}</tr></thead>
                     <tbody></tbody>
@@ -418,7 +487,8 @@
                 config,
                 element: div,
                 tbody: div.querySelector('tbody'),
-                rowsByKey: {},  // key -> tr element
+                rowsByKey: new Map(),  // key -> {tr, order}
+                insertOrder: 0,
                 maxRows: config.max_rows || 100
             };
         }
@@ -438,16 +508,20 @@
         }
 
         // =================================================================
-        // Data Handlers
+        // Data Update Handlers
         // =================================================================
 
         function handleConfig(data) {
             titleEl.textContent = data.title || 'StreamViz';
             document.title = data.title || 'StreamViz';
 
-            // Create widgets based on config
-            for (const [id, config] of Object.entries(data.widgets || {})) {
-                if (widgets[id]) continue;  // Already exists
+            // In embed mode, only create the requested widget
+            const widgetsToCreate = embedWidget
+                ? { [embedWidget]: data.widgets?.[embedWidget] }
+                : (data.widgets || {});
+
+            for (const [id, config] of Object.entries(widgetsToCreate)) {
+                if (!config || widgets[id]) continue;
 
                 const type = config.widget_type;
                 if (type === 'metric') createMetricWidget(id, config);
@@ -462,30 +536,26 @@
         }
 
         function handleData(data) {
+            // In embed mode, only process the requested widget
+            if (embedWidget && data.widget !== embedWidget) return;
+
             const w = widgets[data.widget];
             if (!w) return;
 
             msgCount++;
             msgsLastSec++;
 
-            if (w.type === 'metric') {
-                updateMetric(w, data);
-            } else if (w.type === 'stat') {
-                updateStat(w, data);
-            } else if (w.type === 'gauge') {
-                updateGauge(w, data);
-            } else if (w.type === 'table') {
-                updateTable(w, data);
-            } else if (w.type === 'pathway_table') {
-                updatePathwayTable(w, data);
-            } else if (w.type === 'text') {
-                w.element.textContent = data.value;
-            }
+            if (w.type === 'metric') updateMetric(w, data);
+            else if (w.type === 'stat') updateStat(w, data);
+            else if (w.type === 'gauge') updateGauge(w, data);
+            else if (w.type === 'table') updateTable(w, data);
+            else if (w.type === 'pathway_table') updatePathwayTable(w, data);
+            else if (w.type === 'text') w.element.textContent = data.value;
         }
 
         function updateMetric(w, data) {
-            const ts = data.timestamp / 1000;  // Convert to seconds
-            
+            const ts = data.timestamp / 1000;
+
             if (w.timeData.length >= w.maxPoints) {
                 w.timeData.shift();
                 w.valueData.shift();
@@ -493,13 +563,14 @@
             w.timeData.push(ts);
             w.valueData.push(data.value);
             w.uplot.setData([w.timeData, w.valueData]);
-
             w.valueEl.textContent = formatValue(data.value);
         }
 
         function updateStat(w, data) {
-            w.valueEl.textContent = formatValue(data.value);
-            
+            const formatted = formatValue(data.value);
+            const unit = w.config.unit || '';
+            w.valueEl.textContent = unit ? `${unit}${formatted}` : formatted;
+
             if (data.delta !== null && data.delta !== undefined) {
                 const sign = data.delta >= 0 ? '+' : '';
                 w.deltaEl.textContent = `${sign}${formatValue(data.delta)}`;
@@ -511,30 +582,42 @@
             const pct = Math.max(0, Math.min(1, (data.value - w.min) / (w.max - w.min)));
             const offset = w.circumference * (1 - pct);
             w.fillEl.style.strokeDashoffset = offset;
-            w.valueEl.innerHTML = `${formatValue(data.value)}<span class="unit">${w.config.unit || ''}</span>`;
+
+            // Update color based on thresholds
+            if (w.config.thresholds) {
+                for (const [threshold, color] of w.config.thresholds) {
+                    if (data.value <= threshold) {
+                        w.fillEl.style.stroke = color;
+                        break;
+                    }
+                }
+            }
+
+            w.valueEl.innerHTML = `${formatValue(data.value)}<span class="unit">${escapeHtml(w.config.unit || '')}</span>`;
         }
 
         function updateTable(w, data) {
             const row = data.row;
             const columns = w.config.columns || [];
-            
+
             const tr = document.createElement('tr');
             for (const col of columns) {
                 const td = document.createElement('td');
-                const val = row[col.name] || '';
-                
-                // Special rendering for certain column types
-                if (col.name === 'level' || val === 'ERROR' || val === 'WARN' || val === 'INFO' || val === 'DEBUG') {
-                    td.innerHTML = `<span class="badge badge-${val}">${val}</span>`;
+                const val = row[col.name];
+
+                if (col.name === 'level' || ['ERROR', 'WARN', 'INFO', 'DEBUG'].includes(val)) {
+                    td.innerHTML = `<span class="badge badge-${val}">${escapeHtml(val)}</span>`;
+                } else if (typeof val === 'number') {
+                    td.textContent = formatValue(val);
+                    td.className = 'numeric';
                 } else {
-                    td.textContent = val;
+                    td.textContent = val ?? '';
                 }
                 tr.appendChild(td);
             }
-            
+
             w.tbody.insertBefore(tr, w.tbody.firstChild);
-            
-            // Remove old rows
+
             while (w.tbody.children.length > w.maxRows) {
                 w.tbody.removeChild(w.tbody.lastChild);
             }
@@ -543,60 +626,67 @@
         function updatePathwayTable(w, data) {
             const columns = w.config.columns || [];
             const key = data.key;
-            
+
             if (data.op === 'delete') {
-                // Remove row by key
-                const existingRow = w.rowsByKey[key];
-                if (existingRow) {
-                    existingRow.remove();
-                    delete w.rowsByKey[key];
+                const existing = w.rowsByKey.get(key);
+                if (existing) {
+                    existing.tr.classList.add('row-delete');
+                    setTimeout(() => {
+                        existing.tr.remove();
+                        w.rowsByKey.delete(key);
+                    }, 300);
                 }
                 return;
             }
-            
-            // Upsert: create or update row
+
+            // Upsert
             const row = data.row;
-            let tr = w.rowsByKey[key];
-            const isNew = !tr;
-            
+            let entry = w.rowsByKey.get(key);
+            const isNew = !entry;
+
             if (isNew) {
-                tr = document.createElement('tr');
+                const tr = document.createElement('tr');
                 tr.dataset.key = key;
-                w.rowsByKey[key] = tr;
+                entry = { tr, order: w.insertOrder++ };
+                w.rowsByKey.set(key, entry);
+                w.tbody.appendChild(entry.tr);
             } else {
-                tr.innerHTML = '';  // Clear existing cells
+                entry.tr.innerHTML = '';
             }
-            
+
             for (const col of columns) {
                 const td = document.createElement('td');
                 const val = row[col.name];
-                
+
                 if (val === undefined || val === null) {
                     td.textContent = '';
                 } else if (typeof val === 'number') {
                     td.textContent = formatValue(val);
+                    td.className = 'numeric';
                 } else {
                     td.textContent = String(val);
                 }
-                tr.appendChild(td);
+                entry.tr.appendChild(td);
             }
-            
-            if (isNew) {
-                w.tbody.appendChild(tr);
-            }
-            
-            // Highlight updated row briefly
-            tr.classList.add('row-updated');
-            setTimeout(() => tr.classList.remove('row-updated'), 500);
-            
-            // Enforce max rows (remove oldest)
-            while (Object.keys(w.rowsByKey).length > w.maxRows) {
-                const firstRow = w.tbody.firstChild;
-                if (firstRow && firstRow.dataset.key) {
-                    delete w.rowsByKey[firstRow.dataset.key];
-                    firstRow.remove();
-                } else {
-                    break;
+
+            // Highlight briefly
+            entry.tr.classList.add('row-highlight');
+            setTimeout(() => entry.tr.classList.remove('row-highlight'), 500);
+
+            // Enforce max rows
+            if (w.rowsByKey.size > w.maxRows) {
+                let oldest = null;
+                let oldestOrder = Infinity;
+                for (const [k, v] of w.rowsByKey) {
+                    if (v.order < oldestOrder) {
+                        oldest = k;
+                        oldestOrder = v.order;
+                    }
+                }
+                if (oldest) {
+                    const entry = w.rowsByKey.get(oldest);
+                    entry.tr.remove();
+                    w.rowsByKey.delete(oldest);
                 }
             }
         }
@@ -615,26 +705,46 @@
                 }
 
                 w.uplot.setData([w.timeData, w.valueData]);
-                
+
                 if (item.data.length > 0) {
                     w.valueEl.textContent = formatValue(item.data[item.data.length - 1][1]);
                 }
             }
         }
 
+        // =================================================================
+        // Utilities
+        // =================================================================
+
         function formatValue(v) {
-            if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-            if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
-            if (v >= 100) return v.toFixed(0);
-            if (v >= 10) return v.toFixed(1);
-            return v.toFixed(2);
+            if (v === null || v === undefined) return '--';
+            if (typeof v !== 'number') return String(v);
+
+            const abs = Math.abs(v);
+            if (abs >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+            if (abs >= 1000) return (v / 1000).toFixed(1) + 'k';
+            if (abs >= 100) return v.toFixed(0);
+            if (abs >= 10) return v.toFixed(1);
+            if (abs >= 1) return v.toFixed(2);
+            return v.toPrecision(3);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
         // =================================================================
-        // Stats & Connection
+        // Connection & Stats
         // =================================================================
 
         function updateStats() {
+            if (embedMode) return;  // No stats in embed mode
+
             const now = Date.now();
             if (now - lastRateUpdate >= 1000) {
                 document.getElementById('msg-rate').textContent = msgsLastSec;
@@ -642,16 +752,18 @@
                 lastRateUpdate = now;
             }
             document.getElementById('total-msgs').textContent = msgCount.toLocaleString();
-            
+
             const uptime = Math.floor((now - startTime) / 1000);
-            document.getElementById('uptime').textContent = 
+            document.getElementById('uptime').textContent =
                 uptime < 60 ? uptime + 's' :
                 uptime < 3600 ? Math.floor(uptime / 60) + 'm' :
                 Math.floor(uptime / 3600) + 'h';
-            
+
             requestAnimationFrame(updateStats);
         }
-        requestAnimationFrame(updateStats);
+        if (!embedMode) {
+            requestAnimationFrame(updateStats);
+        }
 
         function connect() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
@@ -677,11 +789,15 @@
             };
         }
 
+        // Handle resize
         window.addEventListener('resize', () => {
             for (const w of Object.values(widgets)) {
                 if (w.uplot) {
                     const container = w.element.querySelector('.chart-container');
-                    w.uplot.setSize({ width: container.offsetWidth, height: 120 });
+                    w.uplot.setSize({
+                        width: container.offsetWidth,
+                        height: embedMode ? 200 : 120
+                    });
                 }
             }
         });

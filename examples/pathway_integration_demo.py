@@ -27,7 +27,6 @@ import threading
 import time
 
 import pathway as pw
-
 import stream_viz as sv
 
 
