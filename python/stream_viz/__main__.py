@@ -6,7 +6,8 @@ Examples:
     python -m stream_viz              # Built-in demo with all widgets
     python -m stream_viz simple       # Simple sine waves
     python -m stream_viz kafka        # Kafka consumer demo (requires Docker)
-    python -m stream_viz ecommerce    # E-commerce with Pathway aggregations
+    python -m stream_viz pathway      # Pathway integration demo (requires Docker)
+    python -m stream_viz ecommerce    # E-commerce with Pathway (legacy)
 """
 
 import argparse
@@ -338,6 +339,131 @@ def run_ecommerce(port: int):
         print("\nStopped.")
 
 
+def run_pathway(port: int):
+    """Run the Pathway integration demo with pathway_table and pathway_stat."""
+    print("\n🚀 StreamViz Pathway Integration Demo")
+    print("=" * 40)
+    print("This demo showcases the native Pathway integration:")
+    print("  - sv.pathway_table() - live updating tables")
+    print("  - sv.pathway_stat() - values from reductions")
+    print()
+
+    # Ensure Kafka is running
+    if not _docker_running():
+        if not _start_docker():
+            print("❌ Could not start Kafka. Install Docker or run manually.")
+            return
+    else:
+        print("✓ Redpanda already running")
+
+    # Create topic and start producer
+    _ensure_topic("orders")
+    _start_producer("ecommerce")
+    time.sleep(2)
+
+    try:
+        import threading
+
+        import pathway as pw
+
+        import stream_viz as sv
+
+        sv.title("E-Commerce Analytics (Pathway)")
+
+        # Kafka settings
+        rdkafka_settings = {
+            "bootstrap.servers": "localhost:9092",
+            "security.protocol": "plaintext",
+            "group.id": "streamviz-pathway-demo",
+            "session.timeout.ms": "6000",
+            "auto.offset.reset": "latest",
+        }
+
+        # Order schema
+        class OrderSchema(pw.Schema):
+            order_id: str
+            timestamp: int
+            product: str
+            category: str
+            quantity: int
+            unit_price: float
+            discount_percent: int
+            total: float
+            region: str
+            payment_method: str
+
+        print("Connecting to Kafka...")
+
+        # Read orders from Kafka
+        orders = pw.io.kafka.read(
+            rdkafka_settings,
+            topic="orders",
+            format="json",
+            schema=OrderSchema,
+            autocommit_duration_ms=1000,
+        )
+
+        # Global totals (single row)
+        totals = orders.reduce(
+            total_revenue=pw.reducers.sum(pw.this.total),
+            order_count=pw.reducers.count(),
+        )
+
+        # By region breakdown
+        by_region = orders.groupby(pw.this.region).reduce(
+            region=pw.this.region,
+            revenue=pw.reducers.sum(pw.this.total),
+            orders=pw.reducers.count(),
+        )
+
+        # By category breakdown
+        by_category = orders.groupby(pw.this.category).reduce(
+            category=pw.this.category,
+            revenue=pw.reducers.sum(pw.this.total),
+            orders=pw.reducers.count(),
+        )
+
+        # Native Pathway integration
+        sv.pathway_stat(totals, column="total_revenue", title="Total Revenue", unit="$")
+        sv.pathway_stat(totals, column="order_count", title="Total Orders")
+
+        sv.pathway_table(
+            by_region,
+            title="Revenue by Region",
+            columns=["region", "revenue", "orders"],
+        )
+
+        sv.pathway_table(
+            by_category,
+            title="Revenue by Category",
+            columns=["category", "revenue", "orders"],
+        )
+
+        sv.start(port)
+
+        print(f"Dashboard: http://localhost:{port}")
+        print("\nShowing:")
+        print("  - Total Revenue & Orders (stats)")
+        print("  - Revenue by Region (live table)")
+        print("  - Revenue by Category (live table)")
+        print("\nPress Ctrl+C to stop\n")
+
+        # Run Pathway in background thread
+        def run_pw():
+            pw.run()
+
+        pw_thread = threading.Thread(target=run_pw, daemon=True)
+        pw_thread.start()
+
+        while True:
+            time.sleep(1)
+
+    except ImportError:
+        print("❌ pathway not installed. Run: pip install pathway")
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -349,14 +475,14 @@ def main():
     signal.signal(signal.SIGTERM, _signal_handler)
 
     parser = argparse.ArgumentParser(
-        description="StreamViz - Real-time streaming data visualization",
+        description="StreamViz - Real-time streaming data visualization for Pathway",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python -m stream_viz              # Built-in demo with all widgets
+  python -m stream_viz pathway      # Pathway integration demo (recommended)
   python -m stream_viz simple       # Simple sine waves
-  python -m stream_viz kafka        # Kafka consumer demo (auto-starts Docker)
-  python -m stream_viz ecommerce    # E-commerce with Pathway
+  python -m stream_viz kafka        # Kafka consumer demo
   python -m stream_viz --port 8080  # Use different port
 """,
     )
@@ -364,7 +490,7 @@ Examples:
     parser.add_argument(
         "demo",
         nargs="?",
-        choices=["default", "simple", "kafka", "ecommerce"],
+        choices=["default", "simple", "kafka", "pathway", "ecommerce"],
         default="default",
         help="Demo to run (default: built-in demo)",
     )
@@ -376,6 +502,7 @@ Examples:
         "default": run_default,
         "simple": run_simple,
         "kafka": run_kafka,
+        "pathway": run_pathway,
         "ecommerce": run_ecommerce,
     }
 

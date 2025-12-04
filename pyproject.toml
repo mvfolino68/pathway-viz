@@ -5,11 +5,11 @@ build-backend = "maturin"
 [project]
 name = "stream-viz"
 version = "0.1.0"
-description = "Real-time streaming data visualization for Kafka, Redpanda, and Python"
+description = "The visualization layer for Pathway - real-time dashboards for streaming data"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-keywords = ["streaming", "visualization", "kafka", "redpanda", "real-time", "dashboard"]
+keywords = ["streaming", "visualization", "pathway", "kafka", "real-time", "dashboard"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -24,14 +24,13 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Kafka/Redpanda streaming support
-kafka = ["kafka-python-ng>=2.0"]
-
-# Stream processing with Pathway (requires Python <3.14 for now)
-# Note: pathway depends on pyarrow which doesn't support Python 3.14 yet
+# Stream processing with Pathway (recommended)
 pathway = [
     "pathway>=0.8; python_version<'3.14'",
 ]
+
+# Kafka/Redpanda streaming support
+kafka = ["kafka-python-ng>=2.0"]
 
 # Development dependencies
 dev = [
@@ -40,10 +39,10 @@ dev = [
     "maturin>=1.0,<2.0",
 ]
 
-# All optional features (for demos)
+# All optional features
 all = [
-    "kafka-python-ng>=2.0",
     "pathway>=0.8; python_version<'3.14'",
+    "kafka-python-ng>=2.0",
 ]
 
 [project.urls]
