@@ -396,6 +396,51 @@
 
         let configReceived = false;
 
+        function handleHistory(data) {
+            // data.widgets is an array of {widget: "id", data: [[ts, val], ...]}
+            if (!data.widgets) return;
+            
+            for (const widgetHistory of data.widgets) {
+                const widgetId = widgetHistory.widget;
+                const historyData = widgetHistory.data;
+                
+                const metric = metrics[widgetId];
+                if (!metric || !historyData || historyData.length === 0) continue;
+                
+                // Clear existing data and load history
+                metric.timeData.length = 0;
+                metric.valueData.length = 0;
+                
+                for (const [ts, val] of historyData) {
+                    // ts is in milliseconds, convert to seconds for uPlot
+                    metric.timeData.push(ts / 1000);
+                    metric.valueData.push(val);
+                    messageCount++;
+                }
+                
+                // Update the chart
+                metric.uplot.setData([metric.timeData, metric.valueData]);
+                
+                // Update current value display with last value
+                if (historyData.length > 0) {
+                    const lastValue = historyData[historyData.length - 1][1];
+                    let displayValue = lastValue;
+                    if (displayValue >= 1000) {
+                        displayValue = (displayValue / 1000).toFixed(1) + 'k';
+                    } else if (displayValue >= 100) {
+                        displayValue = displayValue.toFixed(0);
+                    } else if (displayValue >= 10) {
+                        displayValue = displayValue.toFixed(1);
+                    } else {
+                        displayValue = displayValue.toFixed(2);
+                    }
+                    metric.valueEl.textContent = displayValue;
+                }
+            }
+            
+            console.log(`Loaded history: ${data.widgets.length} widgets`);
+        }
+
         function connect() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
 
@@ -419,6 +464,9 @@
                 if (data.type === 'config') {
                     configReceived = true;
                     handleConfig(data);
+                } else if (data.type === 'history') {
+                    // Bulk load historical data for all widgets
+                    handleHistory(data);
                 } else if (data.type === 'data') {
                     // If we get data but no config yet, the metric will be unknown
                     // but that's okay - config will come and create the chart

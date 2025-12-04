@@ -6,6 +6,7 @@ use tokio::sync::broadcast;
 
 mod generator;
 mod server;
+mod state;
 
 /// Global state to hold the broadcast sender and runtime handle
 static GLOBAL_STATE: OnceLock<Arc<GlobalState>> = OnceLock::new();

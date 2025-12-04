@@ -1,37 +1,74 @@
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    },
     response::{Html, IntoResponse},
     routing::get,
     Router,
 };
-use tokio::sync::{broadcast, RwLock};
+use serde::Deserialize;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::sync::broadcast;
+
+use crate::state::DataStore;
 
 pub struct AppState {
     pub tx: broadcast::Sender<String>,
-    /// Stores the last config message to send to new connections
-    pub last_config: RwLock<Option<String>>,
+    pub data_store: DataStore,
 }
 
 // Embed the frontend HTML directly in the binary - no external files needed!
 const FRONTEND_HTML: &str = include_str!("../frontend/index.html");
 
+/// Message types we might receive from Python
+#[derive(Debug, Deserialize)]
+struct IncomingMessage {
+    #[serde(rename = "type")]
+    msg_type: String,
+    #[serde(default)]
+    widget: Option<String>,
+    #[serde(default)]
+    metric: Option<String>, // Legacy field name
+    #[serde(default)]
+    timestamp: Option<i64>,
+    #[serde(default)]
+    value: Option<f64>,
+}
+
 pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
     let app_state = Arc::new(AppState {
         tx: tx.clone(),
-        last_config: RwLock::new(None),
+        data_store: DataStore::new(),
     });
 
-    // Spawn a background task that listens for config messages and caches them
-    // This ensures config sent before any WebSocket connects is still captured
-    let config_state = Arc::clone(&app_state);
-    let mut config_rx = tx.subscribe();
+    // Spawn a background task that processes all messages
+    // - Caches config messages
+    // - Stores data points in ring buffers
+    let store_state = Arc::clone(&app_state);
+    let mut store_rx = tx.subscribe();
     tokio::spawn(async move {
-        while let Ok(msg) = config_rx.recv().await {
-            if msg.contains("\"type\":\"config\"") {
-                let mut config = config_state.last_config.write().await;
-                *config = Some(msg);
+        while let Ok(msg) = store_rx.recv().await {
+            // Try to parse the message
+            if let Ok(parsed) = serde_json::from_str::<IncomingMessage>(&msg) {
+                match parsed.msg_type.as_str() {
+                    "config" => {
+                        store_state.data_store.set_config(msg);
+                    }
+                    "data" => {
+                        // Get widget ID (support both "widget" and legacy "metric")
+                        let widget_id = parsed
+                            .widget
+                            .or(parsed.metric)
+                            .unwrap_or_default();
+
+                        if let (Some(ts), Some(val)) = (parsed.timestamp, parsed.value) {
+                            store_state.data_store.store_point(&widget_id, ts, val);
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
     });
@@ -60,25 +97,39 @@ async fn ws_handler(
 }
 
 async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
-    // Send the last config to new connections immediately
-    {
-        let config = state.last_config.read().await;
-        if let Some(ref cfg) = *config {
-            if socket.send(Message::Text(cfg.clone())).await.is_err() {
-                return;
-            }
+    // 1. Send the cached config first (so client knows what widgets exist)
+    if let Some(config) = state.data_store.get_config() {
+        if socket.send(Message::Text(config)).await.is_err() {
+            return;
         }
     }
 
+    // 2. Send history for all widgets
+    let all_history = state.data_store.get_all_history();
+    if !all_history.is_empty() {
+        let history_msg = serde_json::json!({
+            "type": "history",
+            "widgets": all_history.iter().map(|(id, points)| {
+                serde_json::json!({
+                    "widget": id,
+                    "data": points.iter().map(|p| (p.timestamp, p.value)).collect::<Vec<_>>()
+                })
+            }).collect::<Vec<_>>()
+        });
+
+        if socket
+            .send(Message::Text(history_msg.to_string()))
+            .await
+            .is_err()
+        {
+            return;
+        }
+    }
+
+    // 3. Subscribe to live updates
     let mut rx = state.tx.subscribe();
 
     while let Ok(msg) = rx.recv().await {
-        // Also cache config here as backup (in case background task missed it)
-        if msg.contains("\"type\":\"config\"") {
-            let mut config = state.last_config.write().await;
-            *config = Some(msg.clone());
-        }
-        
         if socket.send(Message::Text(msg)).await.is_err() {
             break;
         }
