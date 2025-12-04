@@ -7,15 +7,23 @@
     <link rel="stylesheet" href="https://unpkg.com/uplot@1.6.30/dist/uPlot.min.css">
     <script src="https://unpkg.com/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg: #0f0f1a;
+            --surface: rgba(255,255,255,0.03);
+            --border: rgba(255,255,255,0.08);
+            --text: #e0e0e0;
+            --text-muted: #888;
+            --primary: #00d4ff;
+            --success: #00ff88;
+            --warning: #ffd93d;
+            --error: #ff6b6b;
         }
 
         body {
-            background: #0f0f1a;
-            color: #e0e0e0;
+            background: var(--bg);
+            color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
             padding: 24px;
@@ -27,13 +35,13 @@
             align-items: center;
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid var(--border);
         }
 
         h1 {
             font-size: 1.5rem;
             font-weight: 600;
-            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            background: linear-gradient(90deg, var(--primary), #7b2cbf);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -49,91 +57,145 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-
-        #status.connected {
-            background: rgba(0, 255, 136, 0.1);
-            color: #00ff88;
-        }
-
-        #status.disconnected {
-            background: rgba(255, 68, 68, 0.1);
-            color: #ff4444;
-        }
-
+        #status.connected { background: rgba(0,255,136,0.1); color: var(--success); }
+        #status.disconnected { background: rgba(255,68,68,0.1); color: var(--error); }
         #status::before {
             content: '';
             width: 8px;
             height: 8px;
             border-radius: 50%;
             background: currentColor;
-            animation: pulse 2s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        #charts {
+        #widgets {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
-            max-width: 1400px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
-        @media (max-width: 900px) {
-            #charts {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .chart-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .widget {
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
-            transition: border-color 0.2s;
-            min-height: 220px;
-            overflow: hidden;
+            min-height: 100px;
         }
 
-        .chart-card:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .chart-header {
+        .widget-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
-        .chart-title {
-            font-size: 0.9rem;
+        .widget-title {
+            font-size: 0.85rem;
             font-weight: 500;
-            color: #888;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .chart-value {
+        /* Metric Widget (time series) */
+        .metric .current-value {
             font-size: 2rem;
             font-weight: 600;
             line-height: 1;
         }
-
-        .chart-unit {
+        .metric .unit {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--text-muted);
             margin-left: 4px;
         }
-
-        .chart-container {
+        .metric .chart-container {
             margin-top: 12px;
         }
 
-        .u-legend { display: none; }
+        /* Stat Widget (big number) */
+        .stat {
+            text-align: center;
+            padding: 30px 20px;
+        }
+        .stat .value {
+            font-size: 3rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .stat .delta {
+            font-size: 1rem;
+            margin-top: 8px;
+        }
+        .stat .delta.positive { color: var(--success); }
+        .stat .delta.negative { color: var(--error); }
+
+        /* Gauge Widget */
+        .gauge {
+            text-align: center;
+        }
+        .gauge svg {
+            width: 150px;
+            height: 100px;
+            margin: 0 auto;
+        }
+        .gauge .gauge-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        .gauge-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 12; }
+        .gauge-fill { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 0.3s; }
+
+        /* Table Widget */
+        .table-widget table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .table-widget th {
+            text-align: left;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+        .table-widget td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .table-widget tr:last-child td { border-bottom: none; }
+        .table-widget .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .badge-ERROR { background: rgba(255,107,107,0.2); color: var(--error); }
+        .badge-WARN { background: rgba(255,217,61,0.2); color: var(--warning); }
+        .badge-INFO { background: rgba(0,212,255,0.2); color: var(--primary); }
+        .badge-DEBUG { background: rgba(255,255,255,0.1); color: var(--text-muted); }
+
+        /* Text Widget */
+        .text-widget { padding: 16px; }
+        .text-widget.style-caption { font-size: 0.85rem; color: var(--text-muted); }
+        .text-widget.style-code { font-family: monospace; background: rgba(0,0,0,0.3); }
+
+        /* Footer Stats */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            justify-content: center;
+        }
+        .stat-item { text-align: center; }
+        .stat-item .value { font-size: 1.25rem; font-weight: 600; color: var(--primary); }
+        .stat-item .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
 
         #waiting {
             display: flex;
@@ -141,305 +203,359 @@
             align-items: center;
             justify-content: center;
             min-height: 300px;
-            color: #666;
+            color: var(--text-muted);
         }
-
         #waiting .spinner {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #00d4ff;
+            border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 16px;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .stats-bar {
-            display: flex;
-            gap: 24px;
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            justify-content: center;
-        }
-
-        .stat {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #00d4ff;
-        }
-
-        .stat-label {
-            font-size: 0.7rem;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .u-legend { display: none; }
     </style>
 </head>
 <body>
     <header>
-        <h1 id="dashboard-title">StreamViz</h1>
+        <h1 id="title">StreamViz</h1>
         <div id="status" class="disconnected">Connecting</div>
     </header>
 
     <div id="waiting">
         <div class="spinner"></div>
-        <div>Waiting for metrics...</div>
+        <div>Waiting for data...</div>
     </div>
 
-    <div id="charts"></div>
+    <div id="widgets"></div>
 
     <div class="stats-bar">
-        <div class="stat">
-            <div class="stat-value" id="msg-rate">0</div>
-            <div class="stat-label">msg/sec</div>
+        <div class="stat-item">
+            <div class="value" id="msg-rate">0</div>
+            <div class="label">msg/sec</div>
         </div>
-        <div class="stat">
-            <div class="stat-value" id="total-msgs">0</div>
-            <div class="stat-label">Total</div>
+        <div class="stat-item">
+            <div class="value" id="total-msgs">0</div>
+            <div class="label">Total</div>
         </div>
-        <div class="stat">
-            <div class="stat-value" id="uptime">0s</div>
-            <div class="stat-label">Uptime</div>
+        <div class="stat-item">
+            <div class="value" id="uptime">0s</div>
+            <div class="label">Uptime</div>
         </div>
     </div>
 
     <script>
-        // State
-        const metrics = {};  // metric_id -> { config, data, uplot, element }
-        let messageCount = 0;
-        let messagesLastSecond = 0;
+        const widgets = {};  // widget_id -> state
+        let msgCount = 0;
+        let msgsLastSec = 0;
         let lastRateUpdate = Date.now();
         const startTime = Date.now();
 
-        // DOM elements
+        const titleEl = document.getElementById('title');
         const statusEl = document.getElementById('status');
-        const titleEl = document.getElementById('dashboard-title');
-        const chartsEl = document.getElementById('charts');
+        const widgetsEl = document.getElementById('widgets');
         const waitingEl = document.getElementById('waiting');
-        const msgRateEl = document.getElementById('msg-rate');
-        const totalMsgsEl = document.getElementById('total-msgs');
-        const uptimeEl = document.getElementById('uptime');
 
-        function createChart(metricId, config) {
-            // Create card element
-            const card = document.createElement('div');
-            card.className = 'chart-card';
-            card.id = `chart-${metricId}`;
-            card.innerHTML = `
-                <div class="chart-header">
-                    <div class="chart-title">${config.title}</div>
+        // =================================================================
+        // Widget Renderers
+        // =================================================================
+
+        function createMetricWidget(id, config) {
+            const div = document.createElement('div');
+            div.className = 'widget metric';
+            div.id = `widget-${id}`;
+            div.innerHTML = `
+                <div class="widget-header">
+                    <div class="widget-title">${config.title}</div>
                     <div>
-                        <span class="chart-value" style="color: ${config.color}">--</span>
-                        <span class="chart-unit">${config.unit}</span>
+                        <span class="current-value" style="color: ${config.color}">--</span>
+                        <span class="unit">${config.unit || ''}</span>
                     </div>
                 </div>
                 <div class="chart-container"></div>
             `;
-            chartsEl.appendChild(card);
+            widgetsEl.appendChild(div);
 
-            // Initialize data arrays
+            const container = div.querySelector('.chart-container');
             const timeData = [];
             const valueData = [];
 
-            // Create uPlot with proper time axis
-            const container = card.querySelector('.chart-container');
-            const width = container.offsetWidth || 500;
-
             const opts = {
-                width: width,
-                height: 140,
-                series: [
-                    {},
-                    {
-                        stroke: config.color,
-                        width: 2,
-                        fill: config.color + "15",
-                    }
-                ],
-                scales: {
-                    x: { time: true },  // Enable time scale
-                    y: { auto: true },
-                },
+                width: container.offsetWidth || 400,
+                height: 120,
+                series: [{}, { stroke: config.color, width: 2, fill: config.color + "15" }],
+                scales: { x: { time: true }, y: { auto: true } },
                 axes: [
-                    {
-                        stroke: "#555",
-                        grid: { stroke: "rgba(255,255,255,0.03)" },
-                        ticks: { stroke: "#444" },
-                        font: "10px sans-serif",
-                        size: 25,
-                        // Show time as seconds ago or HH:MM:SS
-                        values: (u, vals) => vals.map(v => {
-                            const d = new Date(v * 1000);
-                            return d.toLocaleTimeString('en-US', { 
-                                hour12: false, 
-                                hour: '2-digit', 
-                                minute: '2-digit', 
-                                second: '2-digit' 
-                            });
-                        }),
-                    },
-                    {
-                        stroke: "#555",
-                        grid: { stroke: "rgba(255,255,255,0.05)" },
-                        ticks: { stroke: "#444" },
-                        font: "10px sans-serif",
-                        size: 50,
-                        values: (u, vals) => vals.map(v => {
-                            if (v >= 1000) return (v/1000).toFixed(1) + 'k';
-                            if (v >= 100) return v.toFixed(0);
-                            if (v >= 10) return v.toFixed(1);
-                            return v.toFixed(2);
-                        }),
-                    }
+                    { stroke: "#555", grid: { stroke: "rgba(255,255,255,0.03)" }, font: "10px sans-serif", size: 25 },
+                    { stroke: "#555", grid: { stroke: "rgba(255,255,255,0.05)" }, font: "10px sans-serif", size: 45 }
                 ],
                 cursor: { show: true },
-                legend: { show: false },
+                legend: { show: false }
             };
 
             const uplot = new uPlot(opts, [timeData, valueData], container);
 
-            metrics[metricId] = {
+            widgets[id] = {
+                type: 'metric',
                 config,
+                element: div,
+                valueEl: div.querySelector('.current-value'),
                 timeData,
                 valueData,
                 uplot,
-                element: card,
-                valueEl: card.querySelector('.chart-value'),
+                maxPoints: config.max_points || 200
             };
+        }
 
-            // Hide waiting message
+        function createStatWidget(id, config) {
+            const div = document.createElement('div');
+            div.className = 'widget stat';
+            div.id = `widget-${id}`;
+            div.innerHTML = `
+                <div class="widget-title">${config.title}</div>
+                <div class="value" style="color: ${config.color}">--</div>
+                <div class="delta"></div>
+            `;
+            widgetsEl.appendChild(div);
+
+            widgets[id] = {
+                type: 'stat',
+                config,
+                element: div,
+                valueEl: div.querySelector('.value'),
+                deltaEl: div.querySelector('.delta')
+            };
+        }
+
+        function createGaugeWidget(id, config) {
+            const div = document.createElement('div');
+            div.className = 'widget gauge';
+            div.id = `widget-${id}`;
+            
+            // SVG arc gauge
+            const radius = 60;
+            const circumference = Math.PI * radius;
+            
+            div.innerHTML = `
+                <div class="widget-title">${config.title}</div>
+                <svg viewBox="0 0 150 90">
+                    <path class="gauge-track" d="M 15 75 A 60 60 0 0 1 135 75"/>
+                    <path class="gauge-fill" d="M 15 75 A 60 60 0 0 1 135 75" 
+                          stroke="${config.color}"
+                          stroke-dasharray="${circumference}"
+                          stroke-dashoffset="${circumference}"/>
+                </svg>
+                <div class="gauge-value" style="color: ${config.color}">--<span class="unit">${config.unit || ''}</span></div>
+            `;
+            widgetsEl.appendChild(div);
+
+            widgets[id] = {
+                type: 'gauge',
+                config,
+                element: div,
+                fillEl: div.querySelector('.gauge-fill'),
+                valueEl: div.querySelector('.gauge-value'),
+                circumference,
+                min: config.min || 0,
+                max: config.max || 100
+            };
+        }
+
+        function createTableWidget(id, config) {
+            const div = document.createElement('div');
+            div.className = 'widget table-widget';
+            div.id = `widget-${id}`;
+            
+            const columns = config.columns || [];
+            const headerHtml = columns.map(c => `<th>${c.label || c.name}</th>`).join('');
+            
+            div.innerHTML = `
+                <div class="widget-title">${config.title}</div>
+                <table>
+                    <thead><tr>${headerHtml}</tr></thead>
+                    <tbody></tbody>
+                </table>
+            `;
+            widgetsEl.appendChild(div);
+
+            widgets[id] = {
+                type: 'table',
+                config,
+                element: div,
+                tbody: div.querySelector('tbody'),
+                rows: [],
+                maxRows: config.max_rows || 50
+            };
+        }
+
+        function createTextWidget(id, config) {
+            const div = document.createElement('div');
+            div.className = `widget text-widget style-${config.style || 'body'}`;
+            div.id = `widget-${id}`;
+            div.textContent = config.value || '';
+            widgetsEl.appendChild(div);
+
+            widgets[id] = {
+                type: 'text',
+                config,
+                element: div
+            };
+        }
+
+        // =================================================================
+        // Data Handlers
+        // =================================================================
+
+        function handleConfig(data) {
+            titleEl.textContent = data.title || 'StreamViz';
+            document.title = data.title || 'StreamViz';
+
+            // Create widgets based on config
+            for (const [id, config] of Object.entries(data.widgets || {})) {
+                if (widgets[id]) continue;  // Already exists
+
+                const type = config.widget_type;
+                if (type === 'metric') createMetricWidget(id, config);
+                else if (type === 'stat') createStatWidget(id, config);
+                else if (type === 'gauge') createGaugeWidget(id, config);
+                else if (type === 'table') createTableWidget(id, config);
+                else if (type === 'text') createTextWidget(id, config);
+            }
+
             waitingEl.style.display = 'none';
         }
 
-        function handleConfig(data) {
-            titleEl.textContent = data.title;
-            document.title = data.title;
+        function handleData(data) {
+            const w = widgets[data.widget];
+            if (!w) return;
 
-            for (const [id, config] of Object.entries(data.metrics)) {
-                if (!metrics[id]) {
-                    createChart(id, config);
+            msgCount++;
+            msgsLastSec++;
+
+            if (w.type === 'metric') {
+                updateMetric(w, data);
+            } else if (w.type === 'stat') {
+                updateStat(w, data);
+            } else if (w.type === 'gauge') {
+                updateGauge(w, data);
+            } else if (w.type === 'table') {
+                updateTable(w, data);
+            } else if (w.type === 'text') {
+                w.element.textContent = data.value;
+            }
+        }
+
+        function updateMetric(w, data) {
+            const ts = data.timestamp / 1000;  // Convert to seconds
+            
+            if (w.timeData.length >= w.maxPoints) {
+                w.timeData.shift();
+                w.valueData.shift();
+            }
+            w.timeData.push(ts);
+            w.valueData.push(data.value);
+            w.uplot.setData([w.timeData, w.valueData]);
+
+            w.valueEl.textContent = formatValue(data.value);
+        }
+
+        function updateStat(w, data) {
+            w.valueEl.textContent = formatValue(data.value);
+            
+            if (data.delta !== null && data.delta !== undefined) {
+                const sign = data.delta >= 0 ? '+' : '';
+                w.deltaEl.textContent = `${sign}${formatValue(data.delta)}`;
+                w.deltaEl.className = `delta ${data.delta >= 0 ? 'positive' : 'negative'}`;
+            }
+        }
+
+        function updateGauge(w, data) {
+            const pct = Math.max(0, Math.min(1, (data.value - w.min) / (w.max - w.min)));
+            const offset = w.circumference * (1 - pct);
+            w.fillEl.style.strokeDashoffset = offset;
+            w.valueEl.innerHTML = `${formatValue(data.value)}<span class="unit">${w.config.unit || ''}</span>`;
+        }
+
+        function updateTable(w, data) {
+            const row = data.row;
+            const columns = w.config.columns || [];
+            
+            const tr = document.createElement('tr');
+            for (const col of columns) {
+                const td = document.createElement('td');
+                const val = row[col.name] || '';
+                
+                // Special rendering for certain column types
+                if (col.name === 'level' || val === 'ERROR' || val === 'WARN' || val === 'INFO' || val === 'DEBUG') {
+                    td.innerHTML = `<span class="badge badge-${val}">${val}</span>`;
+                } else {
+                    td.textContent = val;
+                }
+                tr.appendChild(td);
+            }
+            
+            w.tbody.insertBefore(tr, w.tbody.firstChild);
+            
+            // Remove old rows
+            while (w.tbody.children.length > w.maxRows) {
+                w.tbody.removeChild(w.tbody.lastChild);
+            }
+        }
+
+        function handleHistory(data) {
+            for (const item of (data.widgets || [])) {
+                const w = widgets[item.widget];
+                if (!w || w.type !== 'metric') continue;
+
+                w.timeData.length = 0;
+                w.valueData.length = 0;
+
+                for (const [ts, val] of item.data) {
+                    w.timeData.push(ts / 1000);
+                    w.valueData.push(val);
+                }
+
+                w.uplot.setData([w.timeData, w.valueData]);
+                
+                if (item.data.length > 0) {
+                    w.valueEl.textContent = formatValue(item.data[item.data.length - 1][1]);
                 }
             }
         }
 
-        function handleData(data) {
-            const metric = metrics[data.metric];
-            if (!metric) return;
-
-            messageCount++;
-            messagesLastSecond++;
-
-            // Convert milliseconds to seconds for uPlot time axis
-            const timestampSec = data.timestamp / 1000;
-
-            // Ring buffer - keep max_points
-            if (metric.timeData.length >= metric.config.max_points) {
-                metric.timeData.shift();
-                metric.valueData.shift();
-            }
-
-            metric.timeData.push(timestampSec);
-            metric.valueData.push(data.value);
-
-            metric.uplot.setData([metric.timeData, metric.valueData]);
-
-            // Update current value display
-            let displayValue = data.value;
-            if (displayValue >= 1000) {
-                displayValue = (displayValue / 1000).toFixed(1) + 'k';
-            } else if (displayValue >= 100) {
-                displayValue = displayValue.toFixed(0);
-            } else if (displayValue >= 10) {
-                displayValue = displayValue.toFixed(1);
-            } else {
-                displayValue = displayValue.toFixed(2);
-            }
-            metric.valueEl.textContent = displayValue;
+        function formatValue(v) {
+            if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+            if (v >= 1000) return (v / 1000).toFixed(1) + 'k';
+            if (v >= 100) return v.toFixed(0);
+            if (v >= 10) return v.toFixed(1);
+            return v.toFixed(2);
         }
+
+        // =================================================================
+        // Stats & Connection
+        // =================================================================
 
         function updateStats() {
             const now = Date.now();
-
-            // Update rate
             if (now - lastRateUpdate >= 1000) {
-                msgRateEl.textContent = messagesLastSecond;
-                messagesLastSecond = 0;
+                document.getElementById('msg-rate').textContent = msgsLastSec;
+                msgsLastSec = 0;
                 lastRateUpdate = now;
             }
-
-            // Update total
-            totalMsgsEl.textContent = messageCount.toLocaleString();
-
-            // Update uptime
+            document.getElementById('total-msgs').textContent = msgCount.toLocaleString();
+            
             const uptime = Math.floor((now - startTime) / 1000);
-            if (uptime < 60) {
-                uptimeEl.textContent = uptime + 's';
-            } else if (uptime < 3600) {
-                uptimeEl.textContent = Math.floor(uptime / 60) + 'm';
-            } else {
-                uptimeEl.textContent = Math.floor(uptime / 3600) + 'h';
-            }
-
+            document.getElementById('uptime').textContent = 
+                uptime < 60 ? uptime + 's' :
+                uptime < 3600 ? Math.floor(uptime / 60) + 'm' :
+                Math.floor(uptime / 3600) + 'h';
+            
             requestAnimationFrame(updateStats);
         }
         requestAnimationFrame(updateStats);
-
-        let configReceived = false;
-
-        function handleHistory(data) {
-            // data.widgets is an array of {widget: "id", data: [[ts, val], ...]}
-            if (!data.widgets) return;
-            
-            for (const widgetHistory of data.widgets) {
-                const widgetId = widgetHistory.widget;
-                const historyData = widgetHistory.data;
-                
-                const metric = metrics[widgetId];
-                if (!metric || !historyData || historyData.length === 0) continue;
-                
-                // Clear existing data and load history
-                metric.timeData.length = 0;
-                metric.valueData.length = 0;
-                
-                for (const [ts, val] of historyData) {
-                    // ts is in milliseconds, convert to seconds for uPlot
-                    metric.timeData.push(ts / 1000);
-                    metric.valueData.push(val);
-                    messageCount++;
-                }
-                
-                // Update the chart
-                metric.uplot.setData([metric.timeData, metric.valueData]);
-                
-                // Update current value display with last value
-                if (historyData.length > 0) {
-                    const lastValue = historyData[historyData.length - 1][1];
-                    let displayValue = lastValue;
-                    if (displayValue >= 1000) {
-                        displayValue = (displayValue / 1000).toFixed(1) + 'k';
-                    } else if (displayValue >= 100) {
-                        displayValue = displayValue.toFixed(0);
-                    } else if (displayValue >= 10) {
-                        displayValue = displayValue.toFixed(1);
-                    } else {
-                        displayValue = displayValue.toFixed(2);
-                    }
-                    metric.valueEl.textContent = displayValue;
-                }
-            }
-            
-            console.log(`Loaded history: ${data.widgets.length} widgets`);
-        }
 
         function connect() {
             const ws = new WebSocket(`ws://${location.host}/ws`);
@@ -452,35 +568,25 @@
             ws.onclose = () => {
                 statusEl.className = 'disconnected';
                 statusEl.textContent = 'Reconnecting';
-                configReceived = false;
                 setTimeout(connect, 2000);
             };
 
             ws.onerror = () => ws.close();
 
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'config') {
-                    configReceived = true;
-                    handleConfig(data);
-                } else if (data.type === 'history') {
-                    // Bulk load historical data for all widgets
-                    handleHistory(data);
-                } else if (data.type === 'data') {
-                    // If we get data but no config yet, the metric will be unknown
-                    // but that's okay - config will come and create the chart
-                    handleData(data);
-                }
+            ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.type === 'config') handleConfig(data);
+                else if (data.type === 'history') handleHistory(data);
+                else if (data.type === 'data') handleData(data);
             };
         }
 
-        // Handle resize
         window.addEventListener('resize', () => {
-            for (const metric of Object.values(metrics)) {
-                const container = metric.element.querySelector('.chart-container');
-                const width = Math.min(container.offsetWidth || 380, 500);
-                metric.uplot.setSize({ width, height: 150 });
+            for (const w of Object.values(widgets)) {
+                if (w.uplot) {
+                    const container = w.element.querySelector('.chart-container');
+                    w.uplot.setSize({ width: container.offsetWidth, height: 120 });
+                }
             }
         });
 

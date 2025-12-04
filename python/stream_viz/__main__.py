@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-StreamViz - Run with: python -m stream_viz
+StreamViz CLI - Run demos with: python -m stream_viz
 
-This is the quickest way to see StreamViz in action!
+Examples:
+    python -m stream_viz              # Built-in demo with all widgets
+    python -m stream_viz simple       # Simple sine waves
+    python -m stream_viz kafka        # Kafka consumer demo (requires Docker)
+    python -m stream_viz ecommerce    # E-commerce with Pathway aggregations
 """
 
 import argparse
@@ -14,48 +18,35 @@ import time
 from pathlib import Path
 
 # Track background processes for cleanup
-_background_processes: list[subprocess.Popen] = []
+_procs: list[subprocess.Popen] = []
 
 
 def _cleanup():
     """Kill all background processes on exit."""
-    for proc in _background_processes:
+    for p in _procs:
         try:
-            proc.terminate()
-            proc.wait(timeout=2)
+            p.terminate()
+            p.wait(timeout=2)
         except Exception:
             try:
-                proc.kill()
+                p.kill()
             except Exception:
                 pass
 
 
-def _signal_handler(signum, frame):
-    """Handle Ctrl+C gracefully."""
+def _signal_handler(sig, frame):
     print("\n\nShutting down...")
     _cleanup()
     sys.exit(0)
 
 
-def _get_examples_dir() -> Path:
-    """Get the examples directory, works both in dev and installed mode."""
-    # Try relative to this file (development mode)
-    dev_path = Path(__file__).parent.parent.parent / "examples"
-    if dev_path.exists():
-        return dev_path
-
-    # Try current working directory
-    cwd_path = Path.cwd() / "examples"
-    if cwd_path.exists():
-        return cwd_path
-
-    raise FileNotFoundError(
-        "Could not find examples directory. Run from the stream-viz project root or clone the repo."
-    )
+# =============================================================================
+# Docker / Kafka Helpers
+# =============================================================================
 
 
-def _ensure_docker_running():
-    """Check if Docker/Redpanda is running, start if not."""
+def _docker_running() -> bool:
+    """Check if Redpanda/Kafka is running."""
     try:
         result = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}"],
@@ -63,339 +54,332 @@ def _ensure_docker_running():
             text=True,
             timeout=5,
         )
-        if "redpanda" in result.stdout:
-            print("✓ Redpanda already running")
-            return True
+        return "redpanda" in result.stdout
+    except Exception:
+        return False
+
+
+def _start_docker():
+    """Start Redpanda via docker-compose."""
+    compose = Path(__file__).parent.parent.parent / "docker-compose.yml"
+    if not compose.exists():
+        compose = Path.cwd() / "docker-compose.yml"
+    if not compose.exists():
+        print("❌ docker-compose.yml not found")
+        return False
+
+    print("Starting Redpanda...")
+    subprocess.run(
+        ["docker-compose", "-f", str(compose), "up", "-d"],
+        capture_output=True,
+    )
+    time.sleep(3)
+    return _docker_running()
+
+
+def _ensure_topic(topic: str):
+    """Create a Kafka topic if it doesn't exist."""
+    try:
+        subprocess.run(
+            [
+                "docker",
+                "exec",
+                "redpanda",
+                "rpk",
+                "topic",
+                "create",
+                topic,
+                "--brokers=localhost:9092",
+            ],
+            capture_output=True,
+            timeout=10,
+        )
     except Exception:
         pass
 
-    print("Starting Redpanda...")
-    try:
-        # Find docker-compose.yml
-        compose_file = Path.cwd() / "docker-compose.yml"
-        if not compose_file.exists():
-            compose_file = Path(__file__).parent.parent.parent / "docker-compose.yml"
 
-        if not compose_file.exists():
-            print("❌ Could not find docker-compose.yml")
-            print("   Run from the stream-viz project root")
-            return False
+def _start_producer(name: str) -> subprocess.Popen | None:
+    """Start a producer script in the background."""
+    examples = Path(__file__).parent.parent.parent / "examples"
+    if not examples.exists():
+        examples = Path.cwd() / "examples"
 
-        subprocess.run(
-            ["docker", "compose", "-f", str(compose_file), "up", "-d"],
-            check=True,
-            capture_output=True,
-        )
-        print("✓ Redpanda started")
-        print("  Waiting for Redpanda to be ready...")
-        time.sleep(3)  # Give it time to start
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to start Redpanda: {e}")
-        return False
-    except FileNotFoundError:
-        print("❌ Docker not found. Please install Docker.")
-        return False
+    scripts = {
+        "metrics": examples / "producer.py",
+        "ecommerce": examples / "ecommerce_producer.py",
+    }
 
-
-def _start_background_process(cmd: list[str], name: str) -> subprocess.Popen | None:
-    """Start a background process and track it for cleanup."""
-    try:
+    script = scripts.get(name)
+    if script and script.exists():
         proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+            [sys.executable, str(script)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        _background_processes.append(proc)
-        print(f"✓ Started {name} (PID: {proc.pid})")
+        _procs.append(proc)
+        print(f"✓ Started {name} producer (PID: {proc.pid})")
         return proc
-    except Exception as e:
-        print(f"❌ Failed to start {name}: {e}")
-        return None
+    return None
+
+
+# =============================================================================
+# Demo Commands
+# =============================================================================
+
+
+def run_default(port: int):
+    """Run the built-in demo with all widget types."""
+    import stream_viz as sv
+
+    print("\n🚀 StreamViz Demo")
+    print("=" * 40)
+    sv.run_demo(port)
+
+
+def run_simple(port: int):
+    """Run a simple sine wave demo - no dependencies."""
+    import math
+    import random
+
+    import stream_viz as sv
+
+    print("\n🚀 StreamViz Simple Demo")
+    print("=" * 40)
+
+    sv.title("Simple Metrics")
+    cpu = sv.metric("cpu", title="CPU Usage", unit="%")
+    memory = sv.metric("memory", title="Memory", unit="%", color="#00ff88")
+    latency = sv.metric("latency", title="Latency", unit="ms", color="#ff6b6b")
+
+    sv.start(port)
+    print("Press Ctrl+C to stop\n")
+
+    i = 0
+    base_mem = 50.0
+    try:
+        while True:
+            cpu_val = 50 + 30 * math.sin(i * 0.05) + random.gauss(0, 5)
+            cpu.send(max(0, min(100, cpu_val)))
+
+            base_mem += random.gauss(0.01, 0.1)
+            if base_mem > 85:
+                base_mem = 50
+            memory.send(max(0, min(100, base_mem)))
+
+            if random.random() < 0.05:
+                latency.send(random.uniform(100, 300))
+            else:
+                latency.send(15 + abs(random.gauss(0, 10)))
+
+            time.sleep(0.05)
+            i += 1
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
+def run_kafka(port: int):
+    """Run the Kafka consumer demo with auto-start."""
+    import json
+
+    import stream_viz as sv
+
+    print("\n🚀 StreamViz Kafka Demo")
+    print("=" * 40)
+
+    # Ensure Kafka is running
+    if not _docker_running():
+        if not _start_docker():
+            print("❌ Could not start Kafka. Install Docker or run manually.")
+            return
+    else:
+        print("✓ Redpanda already running")
+
+    # Create topic and start producer
+    _ensure_topic("metrics")
+    _start_producer("metrics")
+    time.sleep(1)
+
+    # Set up dashboard
+    sv.title("Kafka Metrics")
+    cpu = sv.metric("cpu", title="CPU Usage", unit="%")
+    memory = sv.metric("memory", title="Memory", unit="%", color="#00ff88")
+    latency = sv.metric("latency", title="Latency", unit="ms", color="#ff6b6b")
+    rps = sv.metric("rps", title="Requests/sec", color="#ffd93d")
+
+    sv.start(port)
+    print("Connecting to Kafka...")
+
+    try:
+        from kafka import KafkaConsumer
+
+        consumer = KafkaConsumer(
+            "metrics",
+            bootstrap_servers=["localhost:9092"],
+            auto_offset_reset="latest",
+            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+        )
+        print("Consuming from 'metrics' topic...")
+        print("Press Ctrl+C to stop\n")
+
+        for msg in consumer:
+            data = msg.value
+            if "cpu" in data:
+                cpu.send(data["cpu"])
+            if "memory" in data:
+                memory.send(data["memory"])
+            if "latency" in data:
+                latency.send(data["latency"])
+            if "rps" in data:
+                rps.send(data["rps"])
+
+    except ImportError:
+        print("❌ kafka-python not installed. Run: pip install kafka-python-ng")
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
+def run_ecommerce(port: int):
+    """Run the e-commerce demo with Pathway aggregations."""
+    print("\n🚀 StreamViz E-commerce Demo (Pathway)")
+    print("=" * 40)
+
+    # Ensure Kafka is running
+    if not _docker_running():
+        if not _start_docker():
+            print("❌ Could not start Kafka. Install Docker or run manually.")
+            return
+    else:
+        print("✓ Redpanda already running")
+
+    # Create topic and start producer
+    _ensure_topic("orders")
+    _start_producer("ecommerce")
+    time.sleep(1)
+
+    print("Starting Pathway aggregation pipeline...")
+
+    try:
+        import pathway as pw
+
+        import stream_viz as sv
+
+        sv.title("E-commerce Analytics (Pathway)")
+
+        # Stats
+        total_orders = sv.stat("total_orders", title="Total Orders")
+        total_revenue = sv.stat("total_revenue", title="Total Revenue", unit="$")
+
+        # Windowed aggregations
+        orders_min = sv.metric(
+            "orders_min",
+            title="Orders/min",
+            window="1m",
+            aggregation="count",
+            color="#00d4ff",
+        )
+        revenue_min = sv.metric(
+            "revenue_min",
+            title="Revenue/min",
+            unit="$",
+            window="1m",
+            aggregation="sum",
+            color="#00ff88",
+        )
+        avg_order = sv.metric(
+            "avg_order",
+            title="Avg Order Value",
+            unit="$",
+            window="30s",
+            aggregation="avg",
+            color="#ffd93d",
+        )
+
+        sv.start(port)
+
+        # Read from Kafka
+        orders = pw.io.kafka.read(
+            rdkafka_settings={"bootstrap.servers": "localhost:9092"},
+            topic="orders",
+            format="json",
+            schema=pw.schema_from_types(
+                order_id=str, product=str, quantity=int, price=float, timestamp=str
+            ),
+            autocommit_duration_ms=100,
+        )
+
+        # Running totals
+        stats = orders.reduce(
+            count=pw.reducers.count(),
+            revenue=pw.reducers.sum(pw.this.price * pw.this.quantity),
+        )
+
+        # Subscribe to updates
+        def on_stats(key, row, time, is_addition):
+            if is_addition:
+                total_orders.send(row["count"])
+                total_revenue.send(row["revenue"])
+
+        def on_order(key, row, time, is_addition):
+            if is_addition:
+                amount = row["price"] * row["quantity"]
+                orders_min.send(1)
+                revenue_min.send(amount)
+                avg_order.send(amount)
+
+        pw.io.subscribe(stats, on_stats)
+        pw.io.subscribe(orders, on_order)
+
+        print("Press Ctrl+C to stop\n")
+        pw.run()
+
+    except ImportError:
+        print("❌ pathway not installed. Run: pip install pathway")
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
+# =============================================================================
+# Main
+# =============================================================================
 
 
 def main():
+    atexit.register(_cleanup)
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
     parser = argparse.ArgumentParser(
         description="StreamViz - Real-time streaming data visualization",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m stream_viz              # Run the built-in demo
+  python -m stream_viz              # Built-in demo with all widgets
   python -m stream_viz simple       # Simple sine waves
-  python -m stream_viz kafka        # Full Kafka demo (auto-starts everything!)
+  python -m stream_viz kafka        # Kafka consumer demo (auto-starts Docker)
   python -m stream_viz ecommerce    # E-commerce with Pathway
-  python -m stream_viz --port 8080  # Use a different port
+  python -m stream_viz --port 8080  # Use different port
 """,
     )
+
     parser.add_argument(
         "demo",
         nargs="?",
-        default="default",
         choices=["default", "simple", "kafka", "ecommerce"],
-        help="Which demo to run (default: built-in demo)",
+        default="default",
+        help="Demo to run (default: built-in demo)",
     )
-    parser.add_argument(
-        "--port",
-        "-p",
-        type=int,
-        default=3000,
-        help="Port to listen on (default: 3000)",
-    )
+    parser.add_argument("--port", "-p", type=int, default=3000, help="Port (default: 3000)")
 
     args = parser.parse_args()
 
-    # Setup cleanup handlers
-    atexit.register(_cleanup)
-    signal.signal(signal.SIGINT, _signal_handler)
-    signal.signal(signal.SIGTERM, _signal_handler)
+    demos = {
+        "default": run_default,
+        "simple": run_simple,
+        "kafka": run_kafka,
+        "ecommerce": run_ecommerce,
+    }
 
-    if args.demo == "default":
-        from stream_viz import run_demo
-
-        print("\n🚀 StreamViz Demo")
-        print("=" * 40)
-        print(f"Dashboard: http://localhost:{args.port}")
-        print("Press Ctrl+C to stop\n")
-        run_demo(port=args.port)
-
-    elif args.demo == "simple":
-        import math
-
-        import stream_viz as sv
-
-        print("\n🚀 StreamViz Simple Demo")
-        print("=" * 40)
-
-        sv.title("Simple Demo")
-        sine = sv.metric("sine", title="Sine Wave")
-        cosine = sv.metric("cosine", title="Cosine Wave")
-        combined = sv.metric("combined", title="Combined")
-        pulse = sv.metric("pulse", title="Pulse")
-
-        sv.start(port=args.port)
-        print("Press Ctrl+C to stop\n")
-
-        i = 0
-        try:
-            while True:
-                t = i * 0.05
-                sine.send(50 + 40 * math.sin(t))
-                cosine.send(50 + 40 * math.cos(t))
-                combined.send(50 + 30 * math.sin(t) + 20 * math.cos(t * 2))
-                pulse.send(50 + 40 * abs(math.sin(t * 0.5)))
-                time.sleep(0.05)
-                i += 1
-        except KeyboardInterrupt:
-            print("\nDone!")
-
-    elif args.demo == "kafka":
-        print("\n🚀 StreamViz Kafka Demo")
-        print("=" * 40)
-
-        # Check for kafka-python-ng
-        import importlib.util
-
-        if importlib.util.find_spec("kafka") is None:
-            print("❌ kafka-python-ng not installed.")
-            print("   Install with: pip install stream-viz[kafka]")
-            sys.exit(1)
-
-        # Ensure Docker/Redpanda is running
-        if not _ensure_docker_running():
-            sys.exit(1)
-
-        # Start the producer in background
-        examples_dir = _get_examples_dir()
-        producer_path = examples_dir / "producer.py"
-
-        print("\nStarting producer...")
-        producer_proc = _start_background_process(
-            [sys.executable, str(producer_path)], "metrics producer"
-        )
-        if not producer_proc:
-            sys.exit(1)
-
-        time.sleep(1)  # Let producer connect
-
-        # Now run the Kafka dashboard
-        print("\nStarting dashboard...\n")
-
-        import json
-
-        from kafka import KafkaConsumer
-
-        import stream_viz as sv
-
-        sv.title("Kafka Metrics Dashboard")
-        cpu = sv.metric("cpu", title="CPU Usage", unit="%")
-        memory = sv.metric("memory", title="Memory Usage", unit="%")
-        rps = sv.metric("rps", title="Requests/sec")
-        latency = sv.metric("latency", title="Latency", unit="ms")
-
-        sv.start(port=args.port)
-
-        print("Connecting to Kafka...")
-        try:
-            consumer = KafkaConsumer(
-                "metrics",
-                bootstrap_servers=["localhost:9092"],
-                value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-                auto_offset_reset="latest",
-                group_id="streamviz-cli",
-                consumer_timeout_ms=60000,
-            )
-            print("Consuming from 'metrics' topic...")
-            print("Press Ctrl+C to stop\n")
-
-            for message in consumer:
-                data = message.value
-                metrics = data.get("metrics", {})
-                if "cpu_percent" in metrics:
-                    cpu.send(metrics["cpu_percent"])
-                if "memory_percent" in metrics:
-                    memory.send(metrics["memory_percent"])
-                if "requests_per_second" in metrics:
-                    rps.send(metrics["requests_per_second"])
-                if "latency_ms" in metrics:
-                    latency.send(metrics["latency_ms"])
-
-        except Exception as e:
-            print(f"❌ Kafka error: {e}")
-            sys.exit(1)
-
-    elif args.demo == "ecommerce":
-        print("\n🚀 StreamViz E-Commerce Demo (with Pathway)")
-        print("=" * 40)
-
-        # Check for pathway
-        import importlib.util
-
-        if importlib.util.find_spec("pathway") is None:
-            print("❌ pathway not installed.")
-            print("   Install with: pip install stream-viz[pathway]")
-            print("   Note: Requires Python 3.11-3.13")
-            sys.exit(1)
-
-        # Check for kafka too
-        if importlib.util.find_spec("kafka") is None:
-            print("❌ kafka-python-ng not installed.")
-            print("   Install with: pip install stream-viz[all]")
-            sys.exit(1)
-
-        # Ensure Docker/Redpanda is running
-        if not _ensure_docker_running():
-            sys.exit(1)
-
-        # Start the e-commerce producer in background
-        examples_dir = _get_examples_dir()
-        producer_path = examples_dir / "ecommerce_producer.py"
-
-        print("\nStarting e-commerce order producer...")
-        producer_proc = _start_background_process(
-            [sys.executable, str(producer_path)], "order producer"
-        )
-        if not producer_proc:
-            sys.exit(1)
-
-        time.sleep(2)  # Let producer connect and start sending
-
-        # Now run the Pathway demo inline
-        print("\nStarting Pathway aggregations...\n")
-
-        import threading
-
-        import pathway as pw
-
-        import stream_viz as sv
-
-        sv.title("E-Commerce Metrics (Pathway)")
-        revenue_total = sv.metric("revenue", title="Total Revenue", unit="$", color="#00ff88")
-        order_count = sv.metric("orders", title="Order Count", color="#00d4ff")
-        avg_order = sv.metric("avg_order", title="Avg Order Value", unit="$", color="#ffd93d")
-        electronics = sv.metric(
-            "electronics", title="Electronics Revenue", unit="$", color="#c44dff"
-        )
-
-        sv.start(port=args.port)
-
-        # Kafka settings for Pathway
-        rdkafka_settings = {
-            "bootstrap.servers": "localhost:9092",
-            "security.protocol": "plaintext",
-            "group.id": "streamviz-pathway-cli",
-            "session.timeout.ms": "6000",
-            "auto.offset.reset": "latest",
-        }
-
-        # Schema
-        class OrderSchema(pw.Schema):
-            order_id: str
-            timestamp: int
-            product: str
-            category: str
-            quantity: int
-            unit_price: float
-            discount_percent: int
-            total: float
-            region: str
-            payment_method: str
-
-        print("Connecting to Kafka...")
-
-        orders = pw.io.kafka.read(
-            rdkafka_settings,
-            topic="orders",
-            format="json",
-            schema=OrderSchema,
-            autocommit_duration_ms=1000,
-        )
-
-        # Running aggregations
-        totals = orders.reduce(
-            total_revenue=pw.reducers.sum(pw.this.total),
-            order_count=pw.reducers.count(),
-        )
-
-        electronics_orders = orders.filter(pw.this.category == "electronics")
-        electronics_totals = electronics_orders.reduce(
-            electronics_revenue=pw.reducers.sum(pw.this.total),
-        )
-
-        def send_totals(key, row, time, is_addition):
-            if is_addition and row["order_count"] > 0:
-                revenue_total.send(row["total_revenue"])
-                order_count.send(row["order_count"])
-                avg_order.send(row["total_revenue"] / row["order_count"])
-
-        def send_electronics(key, row, time, is_addition):
-            if is_addition:
-                electronics.send(row["electronics_revenue"])
-
-        pw.io.subscribe(totals, send_totals)
-        pw.io.subscribe(electronics_totals, send_electronics)
-
-        print("Processing orders...")
-        print(f"Dashboard: http://localhost:{args.port}")
-        print("\nMetrics:")
-        print("  • Total Revenue - Running sum of all orders")
-        print("  • Order Count - Total orders processed")
-        print("  • Avg Order Value - Running average")
-        print("  • Electronics Revenue - Electronics category only")
-        print("\nPress Ctrl+C to stop\n")
-
-        # Run Pathway
-        def run_pathway():
-            pw.run()
-
-        pathway_thread = threading.Thread(target=run_pathway, daemon=True)
-        pathway_thread.start()
-
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            pass
+    demos[args.demo](args.port)
 
 
 if __name__ == "__main__":
