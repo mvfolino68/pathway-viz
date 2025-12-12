@@ -7,46 +7,38 @@ StreamViz should focus on **production dashboards** and **embeddable widgets**.
 
 ## Two Modes
 
-### 1. Standalone Dashboard Mode (Current)
+### 1. Standalone Dashboard Mode
 
 ```python
 import stream_viz as sv
 
 sv.title("Analytics")
-sv.pathway_table(my_table)
+sv.table(my_table)
 sv.start()
 pw.run()
 ```
 
 Opens full dashboard at localhost:3000
 
-### 2. Embed Mode (NEW)
+### 2. Embed Mode (iframes)
 
 ```python
 import stream_viz as sv
 
-# Get embeddable HTML/JS snippet
-embed = sv.embed(my_table, widget="table", height=400)
-print(embed.html)  # <iframe src="..."> or <script>...</script>
-
-# Or serve widgets on specific routes
-sv.serve("/api/orders", my_table)
-sv.serve("/api/stats", totals_table)
+sv.configure(embed=True)
+sv.stat("revenue", title="Revenue")
 sv.start()
+```
+
+```html
+<iframe src="http://localhost:3000/embed/revenue"></iframe>
 ```
 
 ## Embed Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Your Web App (React, Vue, plain HTML)                              │
-│                                                                     │
-│  <StreamVizWidget                                                   │
-│     src="http://localhost:3000/embed/orders"                        │
-│     type="table"                                                    │
-│  />                                                                 │
-│                                                                     │
-│  OR                                                                 │
 │                                                                     │
 │  <iframe src="http://localhost:3000/embed/orders?height=400" />     │
 │                                                                     │
@@ -60,8 +52,6 @@ sv.start()
 │    /                     → Full dashboard                           │
 │    /embed/:widget_id     → Single widget (embeddable)               │
 │    /ws                   → WebSocket for full dashboard             │
-│    /ws/:widget_id        → WebSocket for single widget              │
-│    /api/config           → JSON config for widgets                  │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
                               ▲
@@ -69,34 +59,15 @@ sv.start()
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Pathway Pipeline                                                   │
 │                                                                     │
-│  sv.pathway_table(orders_table, id="orders")                        │
-│  sv.pathway_stat(totals, column="revenue", id="revenue")            │
+│  sv.table(orders_table, id="orders")                                │
+│  sv.stat(totals, "revenue", id="revenue")                           │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-## JavaScript Embed Library
+## Embed Integrations
 
-```html
-<!-- Option 1: Script tag -->
-<script src="http://localhost:3000/streamviz.js"></script>
-<div id="orders-widget"></div>
-<script>
-  StreamViz.connect("http://localhost:3000");
-  StreamViz.table("orders-widget", { widget: "orders", height: 400 });
-</script>
-
-<!-- Option 2: Web Component -->
-<script type="module" src="http://localhost:3000/streamviz.js"></script>
-<streamviz-table src="http://localhost:3000" widget="orders" height="400">
-</streamviz-table>
-
-<!-- Option 3: iframe (simplest) -->
-<iframe
-  src="http://localhost:3000/embed/orders?theme=dark&height=400"
-  style="border:none; width:100%; height:400px;">
-</iframe>
-```
+For framework examples (React / Next.js / Svelte), see `examples/`.
 
 ## Pathway-Native API Design
 
@@ -191,7 +162,6 @@ sv.start(port=3000)
 
 # Run Pathway
 pw.run()
-```
 
 ## Supported Pathway Features
 
@@ -226,25 +196,4 @@ pw.run()
 | `filter()` | ✅ Works transparently |
 | `select()` | ✅ Choose columns |
 | `join()` | ✅ Works transparently |
-
-## Implementation Plan
-
-1. **Rust Server Changes**
-   - Add `/embed/:widget_id` route serving single-widget HTML
-   - Add `/ws/:widget_id` for widget-specific WebSocket
-   - Add `/streamviz.js` for JS embed library
-
-2. **Python API Changes**
-   - Rename to `sv.table()`, `sv.stat()`, `sv.chart()`, `sv.gauge()`
-   - First argument is always a Pathway table
-   - Remove standalone widgets (metric, etc.) - always Pathway-backed
-
-3. **Frontend Changes**
-   - Create embed.html - minimal single-widget page
-   - Create streamviz.js - JavaScript library for embedding
-   - Web component wrapper
-
-4. **Remove Non-Pathway Code**
-   - Remove TumblingWindow (Pathway has this)
-   - Remove manual aggregations
-   - Remove standalone demo widgets
+```

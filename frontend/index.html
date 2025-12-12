@@ -1,808 +1,1054 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StreamViz</title>
-    <link rel="stylesheet" href="https://unpkg.com/uplot@1.6.30/dist/uPlot.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/uplot@1.6.30/dist/uPlot.min.css"
+    />
     <script src="https://unpkg.com/uplot@1.6.30/dist/uPlot.iife.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        :root {
-            --bg: #0f0f1a;
-            --surface: rgba(255,255,255,0.03);
-            --border: rgba(255,255,255,0.08);
-            --text: #e0e0e0;
-            --text-muted: #888;
-            --primary: #00d4ff;
-            --success: #00ff88;
-            --warning: #ffd93d;
-            --error: #ff6b6b;
-        }
+      :root {
+        --bg-base: #0a0a0a;
+        --bg-surface: #111111;
+        --bg-elevated: #1a1a1a;
+        --border: #262626;
+        --border-active: #404040;
+        --text: #e5e5e5;
+        --text-secondary: #a3a3a3;
+        --text-muted: #737373;
+        --accent: #00d672;
+        --accent-dim: #00a85a;
+        --accent-glow: rgba(0, 214, 114, 0.12);
+        --cyan: #00d4ff;
+        --amber: #ffb800;
+        --red: #ff4444;
+        --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+        --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            min-height: 100vh;
-        }
+      body {
+        background: var(--bg-base);
+        color: var(--text);
+        font-family: var(--sans);
+        min-height: 100vh;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
 
-        /* Full dashboard mode */
-        body.dashboard-mode {
-            padding: 24px;
-        }
+      /* Dashboard Mode */
+      body.dashboard-mode {
+        padding: 20px 24px;
+      }
 
-        /* Embed mode - minimal chrome */
-        body.embed-mode {
-            padding: 8px;
-        }
-        body.embed-mode header,
-        body.embed-mode .stats-bar {
-            display: none;
-        }
-        body.embed-mode #widgets {
-            display: block;
-        }
-        body.embed-mode .widget {
-            height: 100%;
-            min-height: auto;
-        }
+      /* Embed Mode */
+      html.embed-mode,
+      body.embed-mode {
+        padding: 4px;
+        background: transparent;
+        overflow: hidden;
+        height: 100%;
+      }
+      body.embed-mode header,
+      body.embed-mode .footer-bar {
+        display: none;
+      }
+      body.embed-mode #widgets {
+        display: block;
+        max-width: none;
+        height: 100%;
+      }
+      body.embed-mode .widget {
+        min-height: auto;
+        height: calc(100% - 8px);
+        overflow: hidden;
+      }
+      body.embed-mode .metric {
+        height: 100%;
+      }
+      body.embed-mode .metric .chart-area {
+        height: calc(100% - 40px);
+        min-height: 0;
+      }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid var(--border);
-        }
+      /* Header */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        max-width: 1600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
 
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            background: linear-gradient(90deg, var(--primary), #7b2cbf);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-        #status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        #status.connected { background: rgba(0,255,136,0.1); color: var(--success); }
-        #status.disconnected { background: rgba(255,68,68,0.1); color: var(--error); }
-        #status::before {
-            content: '';
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-        }
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+      }
 
-        #widgets {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
+      .brand-prefix {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        letter-spacing: 0.02em;
+      }
 
-        .widget {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            min-height: 100px;
-        }
+      #title {
+        font-family: var(--mono);
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: -0.01em;
+      }
 
-        .widget-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
 
-        .widget-title {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+      #status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
 
-        /* Metric Widget (time series) */
-        .metric .current-value {
-            font-size: 2rem;
-            font-weight: 600;
-            line-height: 1;
-        }
-        .metric .unit {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-left: 4px;
-        }
-        .metric .chart-container {
-            margin-top: 12px;
-        }
+      #status.connected {
+        color: var(--accent);
+      }
 
-        /* Stat Widget (big number) */
-        .stat {
-            text-align: center;
-            padding: 30px 20px;
-        }
-        .stat .value {
-            font-size: 3rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-        .stat .delta {
-            font-size: 1rem;
-            margin-top: 8px;
-        }
-        .stat .delta.positive { color: var(--success); }
-        .stat .delta.negative { color: var(--error); }
+      #status.disconnected {
+        color: var(--red);
+      }
 
-        /* Gauge Widget */
-        .gauge {
-            text-align: center;
-        }
-        .gauge svg {
-            width: 150px;
-            height: 100px;
-            margin: 0 auto;
-        }
-        .gauge .gauge-value {
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-        .gauge-track { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 12; }
-        .gauge-fill { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 0.3s; }
+      #status .indicator {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
 
-        /* Table Widget */
-        .table-widget {
-            overflow-x: auto;
-        }
-        .table-widget table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        .table-widget th {
-            text-align: left;
-            padding: 10px 12px;
-            border-bottom: 2px solid var(--border);
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.5px;
-        }
-        .table-widget td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.3s;
-        }
-        .table-widget tr:last-child td { border-bottom: none; }
+      #status.connected .indicator {
+        box-shadow: 0 0 8px currentColor;
+        animation: glow 2s ease-in-out infinite;
+      }
 
-        /* Pathway table - highlight on update */
-        .pathway-table tr.row-highlight td {
-            background: rgba(0, 212, 255, 0.12);
+      @keyframes glow {
+        0%,
+        100% {
+          opacity: 1;
         }
-        .pathway-table tr.row-delete td {
-            background: rgba(255, 107, 107, 0.12);
-            opacity: 0.5;
+        50% {
+          opacity: 0.5;
         }
+      }
 
-        /* Manual table - new row animation */
-        .table-widget:not(.pathway-table) tr {
-            animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+      /* Waiting State */
+      #waiting {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 80px 20px;
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
 
-        .table-widget .badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-ERROR { background: rgba(255,107,107,0.2); color: var(--error); }
-        .badge-WARN { background: rgba(255,217,61,0.2); color: var(--warning); }
-        .badge-INFO { background: rgba(0,212,255,0.2); color: var(--primary); }
-        .badge-DEBUG { background: rgba(255,255,255,0.1); color: var(--text-muted); }
+      #waiting .dots::after {
+        content: "";
+        animation: dots 1.5s steps(4, end) infinite;
+      }
 
-        /* Numeric formatting */
-        .table-widget td.numeric {
-            font-family: 'SF Mono', 'Consolas', monospace;
-            text-align: right;
+      @keyframes dots {
+        0% {
+          content: "";
         }
-
-        /* Text Widget */
-        .text-widget { padding: 16px; }
-        .text-widget.style-caption { font-size: 0.85rem; color: var(--text-muted); }
-        .text-widget.style-code { font-family: monospace; background: rgba(0,0,0,0.3); }
-
-        /* Footer Stats */
-        .stats-bar {
-            display: flex;
-            gap: 24px;
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px solid var(--border);
-            justify-content: center;
+        25% {
+          content: ".";
         }
-        .stat-item { text-align: center; }
-        .stat-item .value { font-size: 1.25rem; font-weight: 600; color: var(--primary); }
-        .stat-item .label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
-
-        #waiting {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 300px;
-            color: var(--text-muted);
+        50% {
+          content: "..";
         }
-        #waiting .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 16px;
+        75% {
+          content: "...";
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+      }
 
-        .u-legend { display: none; }
+      /* Widget Grid */
+      #widgets {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
 
-        /* Responsive tweaks */
-        @media (max-width: 600px) {
-            body.dashboard-mode { padding: 12px; }
-            #widgets { gap: 12px; }
-            .widget { padding: 16px; }
-            .stat .value { font-size: 2rem; }
-        }
+      .widget {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        padding: 14px 16px;
+        min-height: auto;
+        position: relative;
+      }
+
+      .widget::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .widget:hover::before {
+        opacity: 0.5;
+      }
+
+      .widget-label {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .widget-label .tag {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        letter-spacing: 0.02em;
+      }
+
+      /* Metric Widget (Chart) */
+      .metric {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .metric .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 10px;
+      }
+
+      .metric .metric-value {
+        font-family: var(--mono);
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+
+      .metric .metric-unit {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-left: 2px;
+      }
+
+      .metric .chart-area {
+        flex: 1;
+        min-height: 100px;
+        overflow: visible;
+      }
+
+      /* Stat Widget */
+      .stat {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px 18px;
+      }
+
+      .stat .stat-value {
+        font-family: var(--mono);
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--text);
+        margin: 8px 0;
+      }
+
+      .stat .stat-delta {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 500;
+        padding: 2px 6px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+      }
+
+      .stat .stat-delta.positive {
+        color: var(--accent);
+        border-color: var(--accent-dim);
+        background: var(--accent-glow);
+      }
+
+      .stat .stat-delta.negative {
+        color: var(--red);
+        border-color: rgba(255, 68, 68, 0.3);
+        background: rgba(255, 68, 68, 0.1);
+      }
+
+      /* Gauge Widget */
+      .gauge {
+        text-align: center;
+        padding: 16px;
+      }
+
+      .gauge svg {
+        width: 100%;
+        max-width: 150px;
+        height: auto;
+      }
+
+      .gauge-track {
+        fill: none;
+        stroke: var(--bg-elevated);
+        stroke-width: 8;
+        stroke-linecap: round;
+      }
+
+      .gauge-fill {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.3s ease;
+      }
+
+      .gauge .gauge-value {
+        font-family: var(--mono);
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-top: 8px;
+      }
+
+      /* Table Widget */
+      .table-widget {
+        overflow-x: auto;
+      }
+
+      .table-widget table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+      }
+
+      .table-widget th {
+        text-align: left;
+        padding: 8px 10px;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.65rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-elevated);
+      }
+
+      .table-widget td {
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      .table-widget tr:hover td {
+        background: var(--bg-elevated);
+        color: var(--text);
+      }
+
+      .table-widget .level-error,
+      .table-widget .level-ERROR {
+        color: var(--red);
+      }
+
+      .table-widget .level-warn,
+      .table-widget .level-WARN {
+        color: var(--amber);
+      }
+
+      .table-widget .level-info,
+      .table-widget .level-INFO {
+        color: var(--cyan);
+      }
+
+      /* Footer Bar */
+      .footer-bar {
+        display: flex;
+        justify-content: center;
+        gap: 32px;
+        padding: 16px 24px;
+        margin-top: 20px;
+        border-top: 1px solid var(--border);
+        max-width: 1600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .footer-stat {
+        text-align: center;
+      }
+
+      .footer-stat .value {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .footer-stat .label {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 2px;
+      }
+
+      /* Text Widget */
+      .text-widget {
+        font-family: var(--mono);
+      }
+
+      .text-widget.style-h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text);
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+
+      .text-widget.style-h2 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: transparent;
+        border: none;
+        padding: 0;
+      }
+
+      /* Utilities */
+      .u-wrap {
+        overflow: visible !important;
+      }
     </style>
-</head>
-<body class="dashboard-mode">
+  </head>
+  <body class="dashboard-mode">
     <header>
-        <h1 id="title">StreamViz</h1>
-        <div id="status" class="disconnected">Connecting</div>
+      <div class="header-left">
+        <div class="brand">
+          <span class="brand-prefix">~/</span>
+          <h1 id="title">streamviz</h1>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="status" class="disconnected">
+          <span class="indicator"></span>
+          <span class="text">connecting</span>
+        </div>
+      </div>
     </header>
 
     <div id="waiting">
-        <div class="spinner"></div>
-        <div>Waiting for data...</div>
+      <span>awaiting data<span class="dots"></span></span>
     </div>
 
     <div id="widgets"></div>
 
-    <div class="stats-bar">
-        <div class="stat-item">
-            <div class="value" id="msg-rate">0</div>
-            <div class="label">msg/sec</div>
-        </div>
-        <div class="stat-item">
-            <div class="value" id="total-msgs">0</div>
-            <div class="label">Total</div>
-        </div>
-        <div class="stat-item">
-            <div class="value" id="uptime">0s</div>
-            <div class="label">Uptime</div>
-        </div>
+    <div class="footer-bar">
+      <div class="footer-stat">
+        <div class="value" id="msg-rate">0</div>
+        <div class="label">msg/s</div>
+      </div>
+      <div class="footer-stat">
+        <div class="value" id="total-msgs">0</div>
+        <div class="label">total</div>
+      </div>
+      <div class="footer-stat">
+        <div class="value" id="uptime">0s</div>
+        <div class="label">uptime</div>
+      </div>
     </div>
 
     <script>
-        // =================================================================
-        // Configuration & State
-        // =================================================================
+      // =================================================================
+      // Configuration & State
+      // =================================================================
 
-        const params = new URLSearchParams(window.location.search);
-        const embedWidget = params.get('widget');  // Single widget embed mode
-        const embedMode = params.get('embed') === 'true' || embedWidget !== null;
+      const params = new URLSearchParams(window.location.search);
+      const embedWidget = params.get("widget");
+      const embedMode = params.get("embed") === "true" || embedWidget !== null;
 
-        if (embedMode) {
-            document.body.classList.remove('dashboard-mode');
-            document.body.classList.add('embed-mode');
+      if (embedMode) {
+        document.body.classList.remove("dashboard-mode");
+        document.body.classList.add("embed-mode");
+        document.documentElement.classList.add("embed-mode");
+      }
+
+      const widgets = {};
+      let msgCount = 0;
+      let msgsLastSec = 0;
+      let lastRateUpdate = Date.now();
+      const startTime = Date.now();
+
+      const titleEl = document.getElementById("title");
+      const statusEl = document.getElementById("status");
+      const widgetsEl = document.getElementById("widgets");
+      const waitingEl = document.getElementById("waiting");
+
+      const chartColors = [
+        "#00d672",
+        "#00d4ff",
+        "#ffb800",
+        "#ff6b6b",
+        "#a78bfa",
+        "#f472b6",
+      ];
+      let colorIndex = 0;
+      function nextColor() {
+        return chartColors[colorIndex++ % chartColors.length];
+      }
+
+      // =================================================================
+      // Widget Factory
+      // =================================================================
+
+      function createMetricWidget(id, config) {
+        const color = config.color || nextColor();
+        const div = document.createElement("div");
+        div.className = "widget metric";
+        div.id = `widget-${id}`;
+        div.innerHTML = `
+          <div class="widget-label">${escapeHtml(
+            config.title
+          )}<span class="tag">live</span></div>
+          <div class="metric-header">
+            <span class="metric-value" style="color: ${color}">--</span>
+            <span class="metric-unit">${escapeHtml(config.unit || "")}</span>
+          </div>
+          <div class="chart-area"></div>
+        `;
+        widgetsEl.appendChild(div);
+
+        const container = div.querySelector(".chart-area");
+        const timeData = [];
+        const valueData = [];
+
+        const chartHeight = config.height || (embedMode ? 180 : 120);
+        const opts = {
+          width: container.offsetWidth || 400,
+          height: chartHeight,
+          series: [
+            {},
+            {
+              stroke: color,
+              width: 1.5,
+              fill: (self, seriesIdx) => {
+                const gradient = self.ctx.createLinearGradient(
+                  0,
+                  0,
+                  0,
+                  chartHeight
+                );
+                gradient.addColorStop(0, color + "30");
+                gradient.addColorStop(1, color + "05");
+                return gradient;
+              },
+            },
+          ],
+          scales: {
+            x: { time: true },
+            y: { auto: true },
+          },
+          axes: [
+            {
+              stroke: "#404040",
+              grid: { stroke: "#262626", width: 1 },
+              font: "500 9px 'JetBrains Mono'",
+              labelFont: "500 9px 'JetBrains Mono'",
+              size: 40,
+              ticks: { stroke: "#404040", width: 1, size: 3 },
+            },
+            {
+              stroke: "#404040",
+              grid: { stroke: "#262626", width: 1 },
+              font: "500 9px 'JetBrains Mono'",
+              labelFont: "500 9px 'JetBrains Mono'",
+              size: 45,
+              ticks: { stroke: "#404040", width: 1, size: 3 },
+            },
+          ],
+          cursor: {
+            show: true,
+            drag: { x: false, y: false },
+            points: { size: 6, fill: color },
+          },
+          legend: { show: false },
+        };
+
+        const uplot = new uPlot(opts, [timeData, valueData], container);
+
+        widgets[id] = {
+          type: "metric",
+          config: { ...config, color },
+          element: div,
+          valueEl: div.querySelector(".metric-value"),
+          timeData,
+          valueData,
+          uplot,
+          maxPoints: config.max_points || 200,
+          chartHeight,
+        };
+      }
+
+      function createStatWidget(id, config) {
+        const color = config.color || "#e5e5e5";
+        const div = document.createElement("div");
+        div.className = "widget stat";
+        div.id = `widget-${id}`;
+        div.innerHTML = `
+          <div class="widget-label">${escapeHtml(config.title)}</div>
+          <div class="stat-value" style="color: ${color}">--</div>
+          <div class="stat-delta"></div>
+        `;
+        widgetsEl.appendChild(div);
+
+        widgets[id] = {
+          type: "stat",
+          config,
+          element: div,
+          valueEl: div.querySelector(".stat-value"),
+          deltaEl: div.querySelector(".stat-delta"),
+        };
+      }
+
+      function createGaugeWidget(id, config) {
+        const color = config.color || "#00d672";
+        const div = document.createElement("div");
+        div.className = "widget gauge";
+        div.id = `widget-${id}`;
+
+        const radius = 60;
+        const circumference = Math.PI * radius;
+
+        div.innerHTML = `
+          <div class="widget-label">${escapeHtml(config.title)}</div>
+          <svg viewBox="0 0 150 90">
+            <path class="gauge-track" d="M 15 75 A 60 60 0 0 1 135 75"/>
+            <path class="gauge-fill" d="M 15 75 A 60 60 0 0 1 135 75"
+                  stroke="${color}"
+                  stroke-dasharray="${circumference}"
+                  stroke-dashoffset="${circumference}"/>
+          </svg>
+          <div class="gauge-value" style="color: ${color}">--<span class="metric-unit">${escapeHtml(
+          config.unit || ""
+        )}</span></div>
+        `;
+        widgetsEl.appendChild(div);
+
+        widgets[id] = {
+          type: "gauge",
+          config,
+          element: div,
+          fillEl: div.querySelector(".gauge-fill"),
+          valueEl: div.querySelector(".gauge-value"),
+          circumference,
+          min: config.min || 0,
+          max: config.max || 100,
+        };
+      }
+
+      function createTableWidget(id, config) {
+        const div = document.createElement("div");
+        div.className = "widget table-widget";
+        div.id = `widget-${id}`;
+
+        const columns = config.columns || [];
+        const headerHtml = columns
+          .map((c) => `<th>${escapeHtml(c.label || c.name)}</th>`)
+          .join("");
+
+        div.innerHTML = `
+          <div class="widget-label">${escapeHtml(config.title)}</div>
+          <table>
+            <thead><tr>${headerHtml}</tr></thead>
+            <tbody></tbody>
+          </table>
+        `;
+        widgetsEl.appendChild(div);
+
+        widgets[id] = {
+          type: "table",
+          config,
+          element: div,
+          tbody: div.querySelector("tbody"),
+          rows: [],
+          maxRows: config.max_rows || 50,
+        };
+      }
+
+      function createPathwayTableWidget(id, config) {
+        const div = document.createElement("div");
+        div.className = "widget table-widget pathway-table";
+        div.id = `widget-${id}`;
+
+        const columns = config.columns || [];
+        const headerHtml = columns
+          .map((c) => `<th>${escapeHtml(c.label || c.name)}</th>`)
+          .join("");
+
+        div.innerHTML = `
+          <div class="widget-label">${escapeHtml(
+            config.title
+          )}<span class="tag">pathway</span></div>
+          <table>
+            <thead><tr>${headerHtml}</tr></thead>
+            <tbody></tbody>
+          </table>
+        `;
+        widgetsEl.appendChild(div);
+
+        widgets[id] = {
+          type: "pathway_table",
+          config,
+          element: div,
+          tbody: div.querySelector("tbody"),
+          rowsByKey: new Map(),
+          insertOrder: 0,
+          maxRows: config.max_rows || 100,
+        };
+      }
+
+      function createTextWidget(id, config) {
+        const div = document.createElement("div");
+        div.className = `widget text-widget style-${config.style || "body"}`;
+        div.id = `widget-${id}`;
+        div.textContent = config.value || "";
+        widgetsEl.appendChild(div);
+
+        widgets[id] = { type: "text", config, element: div };
+      }
+
+      // =================================================================
+      // Data Update Handlers
+      // =================================================================
+
+      function handleConfig(data) {
+        titleEl.textContent = data.title || "streamviz";
+        document.title = data.title || "StreamViz";
+
+        const widgetsToCreate = embedWidget
+          ? { [embedWidget]: data.widgets?.[embedWidget] }
+          : data.widgets || {};
+
+        for (const [id, config] of Object.entries(widgetsToCreate)) {
+          if (!config || widgets[id]) continue;
+
+          const type = config.widget_type;
+          if (type === "metric") createMetricWidget(id, config);
+          else if (type === "stat") createStatWidget(id, config);
+          else if (type === "gauge") createGaugeWidget(id, config);
+          else if (type === "table") createTableWidget(id, config);
+          else if (type === "pathway_table")
+            createPathwayTableWidget(id, config);
+          else if (type === "text") createTextWidget(id, config);
         }
 
-        const widgets = {};  // widget_id -> state
-        let msgCount = 0;
-        let msgsLastSec = 0;
-        let lastRateUpdate = Date.now();
-        const startTime = Date.now();
+        waitingEl.style.display = "none";
+      }
 
-        const titleEl = document.getElementById('title');
-        const statusEl = document.getElementById('status');
-        const widgetsEl = document.getElementById('widgets');
-        const waitingEl = document.getElementById('waiting');
+      function handleData(data) {
+        if (embedWidget && data.widget !== embedWidget) return;
 
-        // =================================================================
-        // Widget Factory
-        // =================================================================
+        const w = widgets[data.widget];
+        if (!w) return;
 
-        function createMetricWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = 'widget metric';
-            div.id = `widget-${id}`;
-            div.innerHTML = `
-                <div class="widget-header">
-                    <div class="widget-title">${escapeHtml(config.title)}</div>
-                    <div>
-                        <span class="current-value" style="color: ${config.color}">--</span>
-                        <span class="unit">${escapeHtml(config.unit || '')}</span>
-                    </div>
-                </div>
-                <div class="chart-container"></div>
-            `;
-            widgetsEl.appendChild(div);
+        msgCount++;
+        msgsLastSec++;
 
-            const container = div.querySelector('.chart-container');
-            const timeData = [];
-            const valueData = [];
+        if (w.type === "metric") updateMetric(w, data);
+        else if (w.type === "stat") updateStat(w, data);
+        else if (w.type === "gauge") updateGauge(w, data);
+        else if (w.type === "table") updateTable(w, data);
+        else if (w.type === "pathway_table") updatePathwayTable(w, data);
+        else if (w.type === "text") w.element.textContent = data.value;
+      }
 
-            const opts = {
-                width: container.offsetWidth || 400,
-                height: embedMode ? 200 : 120,
-                series: [{}, { stroke: config.color, width: 2, fill: config.color + "15" }],
-                scales: { x: { time: true }, y: { auto: true } },
-                axes: [
-                    { stroke: "#555", grid: { stroke: "rgba(255,255,255,0.03)" }, font: "10px sans-serif", size: 25 },
-                    { stroke: "#555", grid: { stroke: "rgba(255,255,255,0.05)" }, font: "10px sans-serif", size: 45 }
-                ],
-                cursor: { show: true },
-                legend: { show: false }
-            };
+      function handleHistory(payload) {
+        if (!payload || !payload.widgets) return;
 
-            const uplot = new uPlot(opts, [timeData, valueData], container);
+        for (const item of payload.widgets) {
+          if (!item || !item.widget || !item.data) continue;
+          if (embedWidget && item.widget !== embedWidget) continue;
 
-            widgets[id] = {
-                type: 'metric',
-                config,
-                element: div,
-                valueEl: div.querySelector('.current-value'),
-                timeData,
-                valueData,
-                uplot,
-                maxPoints: config.max_points || 200
-            };
-        }
+          const w = widgets[item.widget];
+          if (!w) continue;
 
-        function createStatWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = 'widget stat';
-            div.id = `widget-${id}`;
-            div.innerHTML = `
-                <div class="widget-title">${escapeHtml(config.title)}</div>
-                <div class="value" style="color: ${config.color}">--</div>
-                <div class="delta"></div>
-            `;
-            widgetsEl.appendChild(div);
-
-            widgets[id] = {
-                type: 'stat',
-                config,
-                element: div,
-                valueEl: div.querySelector('.value'),
-                deltaEl: div.querySelector('.delta')
-            };
-        }
-
-        function createGaugeWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = 'widget gauge';
-            div.id = `widget-${id}`;
-
-            const radius = 60;
-            const circumference = Math.PI * radius;
-
-            div.innerHTML = `
-                <div class="widget-title">${escapeHtml(config.title)}</div>
-                <svg viewBox="0 0 150 90">
-                    <path class="gauge-track" d="M 15 75 A 60 60 0 0 1 135 75"/>
-                    <path class="gauge-fill" d="M 15 75 A 60 60 0 0 1 135 75"
-                          stroke="${config.color}"
-                          stroke-dasharray="${circumference}"
-                          stroke-dashoffset="${circumference}"/>
-                </svg>
-                <div class="gauge-value" style="color: ${config.color}">--<span class="unit">${escapeHtml(config.unit || '')}</span></div>
-            `;
-            widgetsEl.appendChild(div);
-
-            widgets[id] = {
-                type: 'gauge',
-                config,
-                element: div,
-                fillEl: div.querySelector('.gauge-fill'),
-                valueEl: div.querySelector('.gauge-value'),
-                circumference,
-                min: config.min || 0,
-                max: config.max || 100
-            };
-        }
-
-        function createTableWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = 'widget table-widget';
-            div.id = `widget-${id}`;
-
-            const columns = config.columns || [];
-            const headerHtml = columns.map(c =>
-                `<th>${escapeHtml(c.label || c.name)}</th>`
-            ).join('');
-
-            div.innerHTML = `
-                <div class="widget-title">${escapeHtml(config.title)}</div>
-                <table>
-                    <thead><tr>${headerHtml}</tr></thead>
-                    <tbody></tbody>
-                </table>
-            `;
-            widgetsEl.appendChild(div);
-
-            widgets[id] = {
-                type: 'table',
-                config,
-                element: div,
-                tbody: div.querySelector('tbody'),
-                rows: [],
-                maxRows: config.max_rows || 50
-            };
-        }
-
-        function createPathwayTableWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = 'widget table-widget pathway-table';
-            div.id = `widget-${id}`;
-
-            const columns = config.columns || [];
-            const headerHtml = columns.map(c =>
-                `<th>${escapeHtml(c.label || c.name)}</th>`
-            ).join('');
-
-            div.innerHTML = `
-                <div class="widget-title">${escapeHtml(config.title)}</div>
-                <table>
-                    <thead><tr>${headerHtml}</tr></thead>
-                    <tbody></tbody>
-                </table>
-            `;
-            widgetsEl.appendChild(div);
-
-            widgets[id] = {
-                type: 'pathway_table',
-                config,
-                element: div,
-                tbody: div.querySelector('tbody'),
-                rowsByKey: new Map(),  // key -> {tr, order}
-                insertOrder: 0,
-                maxRows: config.max_rows || 100
-            };
-        }
-
-        function createTextWidget(id, config) {
-            const div = document.createElement('div');
-            div.className = `widget text-widget style-${config.style || 'body'}`;
-            div.id = `widget-${id}`;
-            div.textContent = config.value || '';
-            widgetsEl.appendChild(div);
-
-            widgets[id] = {
-                type: 'text',
-                config,
-                element: div
-            };
-        }
-
-        // =================================================================
-        // Data Update Handlers
-        // =================================================================
-
-        function handleConfig(data) {
-            titleEl.textContent = data.title || 'StreamViz';
-            document.title = data.title || 'StreamViz';
-
-            // In embed mode, only create the requested widget
-            const widgetsToCreate = embedWidget
-                ? { [embedWidget]: data.widgets?.[embedWidget] }
-                : (data.widgets || {});
-
-            for (const [id, config] of Object.entries(widgetsToCreate)) {
-                if (!config || widgets[id]) continue;
-
-                const type = config.widget_type;
-                if (type === 'metric') createMetricWidget(id, config);
-                else if (type === 'stat') createStatWidget(id, config);
-                else if (type === 'gauge') createGaugeWidget(id, config);
-                else if (type === 'table') createTableWidget(id, config);
-                else if (type === 'pathway_table') createPathwayTableWidget(id, config);
-                else if (type === 'text') createTextWidget(id, config);
-            }
-
-            waitingEl.style.display = 'none';
-        }
-
-        function handleData(data) {
-            // In embed mode, only process the requested widget
-            if (embedWidget && data.widget !== embedWidget) return;
-
-            const w = widgets[data.widget];
-            if (!w) return;
-
-            msgCount++;
-            msgsLastSec++;
-
-            if (w.type === 'metric') updateMetric(w, data);
-            else if (w.type === 'stat') updateStat(w, data);
-            else if (w.type === 'gauge') updateGauge(w, data);
-            else if (w.type === 'table') updateTable(w, data);
-            else if (w.type === 'pathway_table') updatePathwayTable(w, data);
-            else if (w.type === 'text') w.element.textContent = data.value;
-        }
-
-        function updateMetric(w, data) {
-            const ts = data.timestamp / 1000;
-
-            if (w.timeData.length >= w.maxPoints) {
-                w.timeData.shift();
-                w.valueData.shift();
-            }
-            w.timeData.push(ts);
-            w.valueData.push(data.value);
+          if (w.type === "metric") {
+            w.timeData.length = 0;
+            w.valueData.length = 0;
             w.uplot.setData([w.timeData, w.valueData]);
-            w.valueEl.textContent = formatValue(data.value);
+          }
+
+          for (const point of item.data) {
+            if (!point || point.length < 2) continue;
+            const ts = point[0];
+            const val = point[1];
+            handleData({
+              widget: item.widget,
+              timestamp: ts,
+              value: val,
+              delta: null,
+            });
+          }
+        }
+      }
+
+      function updateMetric(w, data) {
+        const ts = data.timestamp / 1000;
+        if (w.timeData.length >= w.maxPoints) {
+          w.timeData.shift();
+          w.valueData.shift();
+        }
+        w.timeData.push(ts);
+        w.valueData.push(data.value);
+        w.uplot.setData([w.timeData, w.valueData]);
+        w.valueEl.textContent = formatValue(data.value);
+      }
+
+      function updateStat(w, data) {
+        const formatted = formatValue(data.value);
+        const unit = w.config.unit || "";
+        w.valueEl.textContent = unit ? `${unit}${formatted}` : formatted;
+
+        if (data.delta !== null && data.delta !== undefined) {
+          const sign = data.delta >= 0 ? "+" : "";
+          w.deltaEl.textContent = `${sign}${formatValue(data.delta)}`;
+          w.deltaEl.className = `stat-delta ${
+            data.delta >= 0 ? "positive" : "negative"
+          }`;
+        }
+      }
+
+      function updateGauge(w, data) {
+        const pct = Math.max(
+          0,
+          Math.min(1, (data.value - w.min) / (w.max - w.min))
+        );
+        const offset = w.circumference * (1 - pct);
+        w.fillEl.style.strokeDashoffset = offset;
+
+        if (w.config.thresholds) {
+          for (const [threshold, color] of w.config.thresholds) {
+            if (data.value <= threshold) {
+              w.fillEl.style.stroke = color;
+              break;
+            }
+          }
         }
 
-        function updateStat(w, data) {
-            const formatted = formatValue(data.value);
-            const unit = w.config.unit || '';
-            w.valueEl.textContent = unit ? `${unit}${formatted}` : formatted;
+        w.valueEl.innerHTML = `${formatValue(
+          data.value
+        )}<span class="metric-unit">${escapeHtml(w.config.unit || "")}</span>`;
+      }
 
-            if (data.delta !== null && data.delta !== undefined) {
-                const sign = data.delta >= 0 ? '+' : '';
-                w.deltaEl.textContent = `${sign}${formatValue(data.delta)}`;
-                w.deltaEl.className = `delta ${data.delta >= 0 ? 'positive' : 'negative'}`;
-            }
+      function updateTable(w, data) {
+        const row = data.row;
+        const columns = w.config.columns || [];
+
+        const tr = document.createElement("tr");
+        for (const col of columns) {
+          const td = document.createElement("td");
+          const val = row[col.name];
+
+          if (col.name === "level" || col.name === "status") {
+            td.className = `level-${val}`;
+          }
+          td.textContent = val !== undefined ? String(val) : "";
+          tr.appendChild(td);
         }
 
-        function updateGauge(w, data) {
-            const pct = Math.max(0, Math.min(1, (data.value - w.min) / (w.max - w.min)));
-            const offset = w.circumference * (1 - pct);
-            w.fillEl.style.strokeDashoffset = offset;
+        w.tbody.insertBefore(tr, w.tbody.firstChild);
+        w.rows.unshift(tr);
 
-            // Update color based on thresholds
-            if (w.config.thresholds) {
-                for (const [threshold, color] of w.config.thresholds) {
-                    if (data.value <= threshold) {
-                        w.fillEl.style.stroke = color;
-                        break;
-                    }
-                }
-            }
+        while (w.rows.length > w.maxRows) {
+          const old = w.rows.pop();
+          old.remove();
+        }
+      }
 
-            w.valueEl.innerHTML = `${formatValue(data.value)}<span class="unit">${escapeHtml(w.config.unit || '')}</span>`;
+      function updatePathwayTable(w, data) {
+        const row = data.row;
+        const key = data.key;
+        const columns = w.config.columns || [];
+
+        if (data.is_deletion) {
+          const existing = w.rowsByKey.get(key);
+          if (existing) {
+            existing.tr.remove();
+            w.rowsByKey.delete(key);
+          }
+          return;
         }
 
-        function updateTable(w, data) {
-            const row = data.row;
-            const columns = w.config.columns || [];
+        let tr;
+        let isNew = false;
 
-            const tr = document.createElement('tr');
-            for (const col of columns) {
-                const td = document.createElement('td');
-                const val = row[col.name];
-
-                if (col.name === 'level' || ['ERROR', 'WARN', 'INFO', 'DEBUG'].includes(val)) {
-                    td.innerHTML = `<span class="badge badge-${val}">${escapeHtml(val)}</span>`;
-                } else if (typeof val === 'number') {
-                    td.textContent = formatValue(val);
-                    td.className = 'numeric';
-                } else {
-                    td.textContent = val ?? '';
-                }
-                tr.appendChild(td);
-            }
-
-            w.tbody.insertBefore(tr, w.tbody.firstChild);
-
-            while (w.tbody.children.length > w.maxRows) {
-                w.tbody.removeChild(w.tbody.lastChild);
-            }
+        if (w.rowsByKey.has(key)) {
+          tr = w.rowsByKey.get(key).tr;
+          tr.innerHTML = "";
+        } else {
+          tr = document.createElement("tr");
+          isNew = true;
         }
 
-        function updatePathwayTable(w, data) {
-            const columns = w.config.columns || [];
-            const key = data.key;
-
-            if (data.op === 'delete') {
-                const existing = w.rowsByKey.get(key);
-                if (existing) {
-                    existing.tr.classList.add('row-delete');
-                    setTimeout(() => {
-                        existing.tr.remove();
-                        w.rowsByKey.delete(key);
-                    }, 300);
-                }
-                return;
-            }
-
-            // Upsert
-            const row = data.row;
-            let entry = w.rowsByKey.get(key);
-            const isNew = !entry;
-
-            if (isNew) {
-                const tr = document.createElement('tr');
-                tr.dataset.key = key;
-                entry = { tr, order: w.insertOrder++ };
-                w.rowsByKey.set(key, entry);
-                w.tbody.appendChild(entry.tr);
-            } else {
-                entry.tr.innerHTML = '';
-            }
-
-            for (const col of columns) {
-                const td = document.createElement('td');
-                const val = row[col.name];
-
-                if (val === undefined || val === null) {
-                    td.textContent = '';
-                } else if (typeof val === 'number') {
-                    td.textContent = formatValue(val);
-                    td.className = 'numeric';
-                } else {
-                    td.textContent = String(val);
-                }
-                entry.tr.appendChild(td);
-            }
-
-            // Highlight briefly
-            entry.tr.classList.add('row-highlight');
-            setTimeout(() => entry.tr.classList.remove('row-highlight'), 500);
-
-            // Enforce max rows
-            if (w.rowsByKey.size > w.maxRows) {
-                let oldest = null;
-                let oldestOrder = Infinity;
-                for (const [k, v] of w.rowsByKey) {
-                    if (v.order < oldestOrder) {
-                        oldest = k;
-                        oldestOrder = v.order;
-                    }
-                }
-                if (oldest) {
-                    const entry = w.rowsByKey.get(oldest);
-                    entry.tr.remove();
-                    w.rowsByKey.delete(oldest);
-                }
-            }
+        for (const col of columns) {
+          const td = document.createElement("td");
+          const val = row[col.name];
+          if (col.name === "level" || col.name === "status") {
+            td.className = `level-${val}`;
+          }
+          td.textContent = val !== undefined ? String(val) : "";
+          tr.appendChild(td);
         }
 
-        function handleHistory(data) {
-            for (const item of (data.widgets || [])) {
-                const w = widgets[item.widget];
-                if (!w || w.type !== 'metric') continue;
-
-                w.timeData.length = 0;
-                w.valueData.length = 0;
-
-                for (const [ts, val] of item.data) {
-                    w.timeData.push(ts / 1000);
-                    w.valueData.push(val);
-                }
-
-                w.uplot.setData([w.timeData, w.valueData]);
-
-                if (item.data.length > 0) {
-                    w.valueEl.textContent = formatValue(item.data[item.data.length - 1][1]);
-                }
-            }
+        if (isNew) {
+          w.rowsByKey.set(key, { tr, order: w.insertOrder++ });
+          w.tbody.appendChild(tr);
         }
+      }
 
-        // =================================================================
-        // Utilities
-        // =================================================================
+      // =================================================================
+      // Utilities
+      // =================================================================
 
-        function formatValue(v) {
-            if (v === null || v === undefined) return '--';
-            if (typeof v !== 'number') return String(v);
+      function formatValue(val) {
+        if (typeof val !== "number") return String(val);
+        if (Math.abs(val) >= 1e9) return (val / 1e9).toFixed(1) + "B";
+        if (Math.abs(val) >= 1e6) return (val / 1e6).toFixed(1) + "M";
+        if (Math.abs(val) >= 1e4) return (val / 1e3).toFixed(1) + "k";
+        if (Math.abs(val) >= 100) return val.toFixed(0);
+        if (Math.abs(val) >= 10) return val.toFixed(1);
+        if (Math.abs(val) >= 1) return val.toFixed(2);
+        return val.toPrecision(3);
+      }
 
-            const abs = Math.abs(v);
-            if (abs >= 1000000) return (v / 1000000).toFixed(1) + 'M';
-            if (abs >= 1000) return (v / 1000).toFixed(1) + 'k';
-            if (abs >= 100) return v.toFixed(0);
-            if (abs >= 10) return v.toFixed(1);
-            if (abs >= 1) return v.toFixed(2);
-            return v.toPrecision(3);
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function updateFooterStats() {
+        const now = Date.now();
+        if (now - lastRateUpdate >= 1000) {
+          document.getElementById("msg-rate").textContent = msgsLastSec;
+          msgsLastSec = 0;
+          lastRateUpdate = now;
         }
+        document.getElementById("total-msgs").textContent =
+          msgCount >= 1000 ? (msgCount / 1000).toFixed(1) + "k" : msgCount;
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+        const uptime = Math.floor((now - startTime) / 1000);
+        const mins = Math.floor(uptime / 60);
+        const secs = uptime % 60;
+        document.getElementById("uptime").textContent =
+          mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+
+        requestAnimationFrame(updateFooterStats);
+      }
+      if (!embedMode) updateFooterStats();
+
+      // =================================================================
+      // WebSocket Connection
+      // =================================================================
+
+      function connect() {
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+        ws.onopen = () => {
+          statusEl.className = "connected";
+          statusEl.querySelector(".text").textContent = "live";
+        };
+
+        ws.onclose = () => {
+          statusEl.className = "disconnected";
+          statusEl.querySelector(".text").textContent = "reconnecting";
+          setTimeout(connect, 2000);
+        };
+
+        ws.onerror = () => ws.close();
+
+        ws.onmessage = (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === "config") handleConfig(data);
+          else if (data.type === "history") handleHistory(data);
+          else if (data.type === "data") handleData(data);
+        };
+      }
+
+      window.addEventListener("resize", () => {
+        for (const w of Object.values(widgets)) {
+          if (w.uplot) {
+            const container = w.element.querySelector(".chart-area");
+            w.uplot.setSize({
+              width: container.offsetWidth,
+              height: w.chartHeight || (embedMode ? 180 : 120),
+            });
+          }
         }
+      });
 
-        // =================================================================
-        // Connection & Stats
-        // =================================================================
-
-        function updateStats() {
-            if (embedMode) return;  // No stats in embed mode
-
-            const now = Date.now();
-            if (now - lastRateUpdate >= 1000) {
-                document.getElementById('msg-rate').textContent = msgsLastSec;
-                msgsLastSec = 0;
-                lastRateUpdate = now;
-            }
-            document.getElementById('total-msgs').textContent = msgCount.toLocaleString();
-
-            const uptime = Math.floor((now - startTime) / 1000);
-            document.getElementById('uptime').textContent =
-                uptime < 60 ? uptime + 's' :
-                uptime < 3600 ? Math.floor(uptime / 60) + 'm' :
-                Math.floor(uptime / 3600) + 'h';
-
-            requestAnimationFrame(updateStats);
-        }
-        if (!embedMode) {
-            requestAnimationFrame(updateStats);
-        }
-
-        function connect() {
-            const ws = new WebSocket(`ws://${location.host}/ws`);
-
-            ws.onopen = () => {
-                statusEl.className = 'connected';
-                statusEl.textContent = 'Live';
-            };
-
-            ws.onclose = () => {
-                statusEl.className = 'disconnected';
-                statusEl.textContent = 'Reconnecting';
-                setTimeout(connect, 2000);
-            };
-
-            ws.onerror = () => ws.close();
-
-            ws.onmessage = (e) => {
-                const data = JSON.parse(e.data);
-                if (data.type === 'config') handleConfig(data);
-                else if (data.type === 'history') handleHistory(data);
-                else if (data.type === 'data') handleData(data);
-            };
-        }
-
-        // Handle resize
-        window.addEventListener('resize', () => {
-            for (const w of Object.values(widgets)) {
-                if (w.uplot) {
-                    const container = w.element.querySelector('.chart-container');
-                    w.uplot.setSize({
-                        width: container.offsetWidth,
-                        height: embedMode ? 200 : 120
-                    });
-                }
-            }
-        });
-
-        connect();
+      connect();
     </script>
-</body>
+  </body>
 </html>

@@ -1,13 +1,46 @@
-# StreamViz Docker Image
+# StreamViz Production Docker Image
 #
-# Build:
+# ==============================================================================
+# BUILD
+# ==============================================================================
+#
+#   # Build the image
 #   docker build -t stream-viz .
 #
-# Run demo:
-#   docker run -p 3000:3000 stream-viz
+#   # Build with specific Python version
+#   docker build --build-arg PYTHON_VERSION=3.11 -t stream-viz .
 #
-# Run with Kafka (use host network to connect to localhost:9092):
-#   docker run --network host stream-viz python examples/kafka_demo.py
+# ==============================================================================
+# RUN - DEMO MODE
+# ==============================================================================
+#
+#   # Run the demo (requires Kafka on host or docker network)
+#   docker run -p 3000:3000 -p 3001:3001 --network host stream-viz
+#
+# ==============================================================================
+# RUN - PRODUCTION (Your own pipeline)
+# ==============================================================================
+#
+#   # Mount your pipeline script
+#   docker run -p 3000:3000 \
+#     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
+#     stream-viz python my_pipeline.py
+#
+#   # With environment variables for Kafka
+#   docker run -p 3000:3000 \
+#     -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+#     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
+#     stream-viz python my_pipeline.py
+#
+#   # With DuckDB persistence (mount a volume)
+#   docker run -p 3000:3000 \
+#     -v streamviz-data:/app/data \
+#     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
+#     stream-viz python my_pipeline.py
+#
+# ==============================================================================
+
+ARG PYTHON_VERSION=3.12
 
 # Stage 1: Build the Rust extension
 FROM rust:1.75-slim as builder
@@ -19,6 +52,8 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install maturin
@@ -28,29 +63,44 @@ RUN pip3 install maturin --break-system-packages
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY python ./python
+COPY frontend ./frontend
 COPY pyproject.toml ./
 
 # Build the wheel
 RUN maturin build --release
 
 # Stage 2: Runtime image
-FROM python:3.12-slim
+FROM python:${PYTHON_VERSION}-slim
 
 WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the wheel from builder
 COPY --from=builder /app/target/wheels/*.whl ./
 
-# Copy frontend and examples
-COPY frontend ./frontend
-COPY examples ./examples
-COPY demo.py ./
+# Install the package with all optional dependencies
+RUN pip install --no-cache-dir *.whl && rm -f *.whl
 
-# Install the package with kafka support
-RUN pip install --no-cache-dir *.whl kafka-python-ng
+# Copy examples for reference
+COPY examples ./examples
+
+# Create data directory for persistence
+RUN mkdir -p /app/data
+
+# Environment variables
+ENV STREAMVIZ_PORT=3000
+ENV STREAMVIZ_DATA_DIR=/app/data
 
 # Expose the default port
 EXPOSE 3000
 
-# Default: run the demo
-CMD ["python", "demo.py"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${STREAMVIZ_PORT}/')" || exit 1
+
+# Default: print usage
+CMD ["python", "-c", "print('StreamViz container ready.\\n\\nUsage:\\n  Mount your pipeline: -v ./my_pipeline.py:/app/my_pipeline.py\\n  Run it: python my_pipeline.py\\n\\nOr run the demo with --network host')"]

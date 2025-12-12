@@ -41,6 +41,7 @@ from typing import Any, TypeVar
 
 from ._stream_viz import send_data as _send_data
 from ._stream_viz import start_server as _start_server
+from ._stream_viz import stop_server as _stop_server
 
 __version__ = "0.1.0"
 __all__ = [
@@ -53,6 +54,7 @@ __all__ = [
     "title",
     "configure",
     "start",
+    "stop",
     # Utilities
     "send_json",
     "run_demo",
@@ -596,6 +598,7 @@ def chart(
     color: str | None = None,
     chart_type: str = "line",
     max_points: int = 200,
+    height: int | None = None,
     embed: bool = False,
 ) -> _ManualChart | None:
     """
@@ -614,6 +617,7 @@ def chart(
         color: Line/fill color
         chart_type: "line" or "area"
         max_points: Max points to display
+        height: Chart height in pixels (default: 140 dashboard, 200 embed)
         embed: Enable embeddable endpoint
 
     Example (Pathway windowed):
@@ -641,6 +645,7 @@ def chart(
             color=color,
             chart_type=chart_type,
             max_points=max_points,
+            height=height,
             embed=embed,
         )
 
@@ -653,6 +658,7 @@ def chart(
         unit=unit,
         color=color,
         max_points=max_points,
+        height=height,
         embed=embed,
     )
 
@@ -668,6 +674,7 @@ def _chart_pathway(
     color: str | None,
     chart_type: str,
     max_points: int,
+    height: int | None,
     embed: bool,
 ) -> None:
     """Display Pathway data as a time series chart."""
@@ -685,6 +692,7 @@ def _chart_pathway(
             "color": color or _next_color(),
             "chart_type": chart_type,
             "max_points": max_points,
+            "height": height,
             "embed": embed,
         },
     )
@@ -747,6 +755,7 @@ def _chart_manual(
     unit: str,
     color: str | None,
     max_points: int,
+    height: int | None,
     embed: bool,
 ) -> _ManualChart:
     """Create a manual chart widget."""
@@ -758,6 +767,7 @@ def _chart_manual(
             "unit": unit,
             "color": color or _next_color(),
             "max_points": max_points,
+            "height": height,
             "embed": embed,
         },
     )
@@ -984,6 +994,12 @@ def start(port: int | None = None) -> None:
 
     if _state.config.embed_enabled:
         print(f"Embed widgets: {dashboard_url}/embed/{{widget_id}}")
+
+
+def stop() -> None:
+    """Stop the StreamViz server."""
+    _stop_server()
+    _state.started = False
 
 
 # =============================================================================

@@ -1,57 +1,85 @@
-# StreamViz Examples
+# Framework Integration Examples
 
-This folder contains example scripts demonstrating different StreamViz use cases.
+Embed StreamViz widgets into your web application via iframes.
 
-## Quick Start
-
-### No Dependencies
+## Run the Demo First
 
 ```bash
-python examples/simple_demo.py
+# For embedding examples, run the full demo (enables embed endpoints)
+python -m stream_viz
 ```
 
-Open <http://localhost:3000> to see four animated wave charts.
+This starts the full demo with Kafka/Redpanda, Pathway, and DuckDB persistence.
 
-### With Kafka/Redpanda
+If you just want a quick sanity check without Docker:
 
 ```bash
-# Install Kafka dependencies
-pip install stream-viz[kafka]
-
-# Start Redpanda
-docker compose up -d
-
-# Terminal 1: Start the producer
-python examples/producer.py
-
-# Terminal 2: Start the dashboard
-python examples/kafka_demo.py
+python -m stream_viz --mode simple
 ```
 
-### With Pathway (Stream Processing)
+---
 
-> ⚠️ Requires Python 3.11-3.13 (Pathway depends on pyarrow which doesn't support 3.14 yet)
+## Framework Components
 
-```bash
-# Install Pathway dependencies
-pip install stream-viz[pathway]
+### React / Next.js
 
-# Start Redpanda
-docker compose up -d
+Copy `nextjs/StreamVizWidget.tsx` into your project:
 
-# Terminal 1: Generate fake orders
-python examples/ecommerce_producer.py
+```tsx
+import { StreamVizWidget } from "./StreamVizWidget";
 
-# Terminal 2: Run Pathway aggregations
-python examples/pathway_demo.py
+<StreamVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />;
 ```
 
-## Examples Overview
+### Svelte 5
 
-| File | Description | Requirements |
-|------|-------------|--------------|
-| `simple_demo.py` | Four animated sine/cosine waves | None |
-| `kafka_demo.py` | Consume and visualize Kafka metrics | Docker, `[kafka]` |
-| `producer.py` | Generate fake system metrics | Docker, `[kafka]` |
-| `pathway_demo.py` | Real-time revenue aggregations | Docker, `[pathway]`, Python <3.14 |
-| `ecommerce_producer.py` | Generate fake e-commerce orders | Docker, `[kafka]` |
+Copy `svelte/StreamVizWidget.svelte` into your project:
+
+```svelte
+<script>
+  import StreamVizWidget from './StreamVizWidget.svelte';
+</script>
+
+<StreamVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />
+```
+
+## Usage
+
+1. Start StreamViz with embedding enabled:
+
+   ```python
+   import stream_viz as sv
+   sv.configure(embed=True)
+   sv.stat("revenue", title="Revenue", unit="$")
+   sv.start()
+   ```
+
+2. Use the widget component in your app pointing to `http://localhost:3000/embed/revenue`
+
+## Framework Examples
+
+- **[Next.js](./nextjs/)** - React Server Components + Client embedding
+- **[Svelte 5](./svelte/)** - Reactive widget components
+- **[React](./react/)** - Simple React component wrapper
+
+## Embedding API
+
+Each widget is available at:
+
+```
+http://localhost:{port}/embed/{widget_id}
+```
+
+The embedded widget:
+
+- Connects via WebSocket automatically
+- Has transparent background (inherits parent styling)
+- Resizes to fit container
+- Reconnects on disconnect
+
+## Tips
+
+1. **Use iframes for isolation** - Each widget manages its own WebSocket connection
+2. **Set explicit dimensions** - Wrap iframes in sized containers
+3. **CORS is enabled** - Embed from any origin
+4. **Transparent backgrounds** - Style the parent container, not the iframe

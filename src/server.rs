@@ -1,17 +1,17 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Path, Query, State,
+        Path, State,
     },
     response::{Html, IntoResponse},
     routing::get,
     Router,
 };
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tokio::sync::oneshot;
 
 use crate::state::DataStore;
 
@@ -22,6 +22,7 @@ pub struct AppState {
 
 // Embed the frontend HTML directly in the binary - no external files needed!
 const FRONTEND_HTML: &str = include_str!("../frontend/index.html");
+const EMBED_DEMO_HTML: &str = include_str!("../frontend/embed.html");
 
 /// Message types we might receive from Python
 #[derive(Debug, Deserialize)]
@@ -38,16 +39,7 @@ struct IncomingMessage {
     value: Option<f64>,
 }
 
-/// Query params for embed endpoint
-#[derive(Debug, Deserialize)]
-struct EmbedQuery {
-    #[serde(default)]
-    height: Option<u32>,
-    #[serde(default)]
-    theme: Option<String>,
-}
-
-pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
+pub async fn start_server(port: u16, tx: broadcast::Sender<String>, shutdown: oneshot::Receiver<()>) {
     let app_state = Arc::new(AppState {
         tx: tx.clone(),
         data_store: DataStore::new(),
@@ -85,7 +77,8 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
 
     let app = Router::new()
         .route("/", get(serve_frontend))
-        .route("/embed/{widget_id}", get(serve_embed))
+        .route("/embed.html", get(serve_embed_demo_page))
+        .route("/embed/:widget_id", get(serve_embed))
         .route("/ws", get(ws_handler))
         .with_state(app_state);
 
@@ -93,11 +86,21 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>) {
     println!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async {
+            let _ = shutdown.await;
+        })
+        .await
+        .unwrap();
 }
 
 async fn serve_frontend() -> impl IntoResponse {
     Html(FRONTEND_HTML)
+}
+
+/// Serve the embed demo page showing widgets in iframes
+async fn serve_embed_demo_page() -> impl IntoResponse {
+    Html(EMBED_DEMO_HTML)
 }
 
 /// Serve a single widget in embed mode

@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShopFlow Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-base: #0a0a0a;
+        --bg-surface: #111111;
+        --bg-elevated: #1a1a1a;
+        --border: #262626;
+        --border-active: #404040;
+        --text: #e5e5e5;
+        --text-secondary: #a3a3a3;
+        --text-muted: #737373;
+        --accent: #00d672;
+        --accent-dim: #00a85a;
+        --cyan: #00d4ff;
+        --amber: #ffb800;
+        --red: #ff4444;
+        --purple: #a78bfa;
+        --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+        --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        font-family: var(--sans);
+        background: var(--bg-base);
+        color: var(--text);
+        min-height: 100vh;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Header */
+      .header {
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+      }
+
+      .brand-prefix {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        color: var(--text-muted);
+      }
+
+      .brand-name {
+        font-family: var(--mono);
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .tech-stack {
+        display: flex;
+        gap: 8px;
+      }
+
+      .tech-tag {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        padding: 3px 8px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+
+      .tech-tag.kafka {
+        border-color: rgba(255, 68, 68, 0.3);
+        color: var(--red);
+      }
+
+      .tech-tag.pathway {
+        border-color: rgba(167, 139, 250, 0.3);
+        color: var(--purple);
+      }
+
+      .tech-tag.streamviz {
+        border-color: rgba(0, 214, 114, 0.3);
+        color: var(--accent);
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--accent);
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        background: var(--accent);
+        border-radius: 50%;
+        box-shadow: 0 0 8px var(--accent);
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      /* Main */
+      .main {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .page-header {
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .page-title {
+        font-family: var(--mono);
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+
+      .page-subtitle {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      /* Sections */
+      .section {
+        margin-bottom: 24px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .section-label {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        padding: 2px 6px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+      }
+
+      /* Card Grid */
+      .card-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .card-grid.cols-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .card-grid.cols-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .card-grid.cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      /* Widget Cards */
+      .widget-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .widget-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, var(--accent) 0%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .widget-card:hover::before {
+        opacity: 0.6;
+      }
+
+      .widget-card:hover {
+        border-color: var(--border-active);
+      }
+
+      .widget-label {
+        padding: 10px 12px 6px;
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .widget-label .live-dot {
+        width: 5px;
+        height: 5px;
+        background: var(--accent);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .widget-embed {
+        height: 130px;
+        padding: 0 6px 6px;
+      }
+
+      .widget-embed.tall {
+        height: 260px;
+      }
+
+      .widget-embed iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: var(--bg-base);
+      }
+
+      /* Pipeline Diagram */
+      .pipeline {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        padding: 20px 24px;
+        margin-top: 24px;
+      }
+
+      .pipeline-header {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
+
+      .pipeline-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .pipeline-node {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+      }
+
+      .pipeline-node-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pipeline-node-icon img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+
+      .pipeline-node-text {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .pipeline-node-name {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .pipeline-node-desc {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-muted);
+      }
+
+      .pipeline-arrow {
+        font-family: var(--mono);
+        color: var(--border-active);
+        font-size: 1.25rem;
+      }
+
+      /* Footer */
+      .footer {
+        margin-top: 32px;
+        padding: 20px 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .footer-content {
+        max-width: 600px;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      .footer-title {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .footer-desc {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        line-height: 1.7;
+      }
+
+      .footer-desc code {
+        background: var(--bg-elevated);
+        padding: 1px 4px;
+        border: 1px solid var(--border);
+        font-size: 0.6rem;
+      }
+
+      .footer-desc a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .footer-desc a:hover {
+        text-decoration: underline;
+      }
+
+      /* Responsive */
+      @media (max-width: 1200px) {
+        .card-grid.cols-4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .card-grid.cols-3 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          padding: 16px;
+        }
+        .card-grid.cols-4,
+        .card-grid.cols-3,
+        .card-grid.cols-2 {
+          grid-template-columns: 1fr;
+        }
+        .header {
+          padding: 0 16px;
+        }
+        .tech-stack {
+          display: none;
+        }
+        .pipeline-flow {
+          flex-direction: column;
+        }
+        .pipeline-arrow {
+          transform: rotate(90deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-left">
+        <div class="brand">
+          <span class="brand-prefix">~/demo/</span>
+          <span class="brand-name">shopflow</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="tech-stack">
+          <span class="tech-tag kafka">kafka</span>
+          <span class="tech-tag pathway">pathway</span>
+          <span class="tech-tag streamviz">streamviz</span>
+        </div>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>streaming</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="page-header">
+        <h1 class="page-title">Real-Time E-Commerce Analytics</h1>
+        <p class="page-subtitle">
+          Order stream → Kafka → Pathway processing → StreamViz widgets
+        </p>
+      </div>
+
+      <div class="dashboard">
+        <!-- Key Metrics -->
+        <section class="section">
+          <div class="section-header">
+            <span class="section-label">key metrics</span>
+          </div>
+          <div class="card-grid cols-3">
+            <div class="widget-card">
+              <div class="widget-label">
+                total_revenue
+                <span class="live-dot"></span>
+              </div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/revenue"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">
+                total_orders
+                <span class="live-dot"></span>
+              </div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/orders"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">
+                avg_order_value
+                <span class="live-dot"></span>
+              </div>
+              <div class="widget-embed">
+                <iframe
+                  src="http://localhost:{{PORT}}/embed/avg_order"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Trends -->
+        <section class="section">
+          <div class="section-header">
+            <span class="section-label">time series</span>
+          </div>
+          <div class="card-grid cols-2">
+            <div class="widget-card">
+              <div class="widget-label">
+                cumulative_revenue
+                <span class="live-dot"></span>
+              </div>
+              <div class="widget-embed tall">
+                <iframe
+                  src="http://localhost:{{PORT}}/embed/revenue_chart"
+                ></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">
+                orders_per_second
+                <span class="live-dot"></span>
+              </div>
+              <div class="widget-embed tall">
+                <iframe
+                  src="http://localhost:{{PORT}}/embed/orders_chart"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Regional Breakdown -->
+        <section class="section">
+          <div class="section-header">
+            <span class="section-label">by region</span>
+          </div>
+          <div class="card-grid cols-4">
+            <div class="widget-card">
+              <div class="widget-label">us_east</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/us_east"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">us_west</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/us_west"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">europe</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/europe"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">asia</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/asia"></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Category Breakdown -->
+        <section class="section">
+          <div class="section-header">
+            <span class="section-label">by category</span>
+          </div>
+          <div class="card-grid cols-4">
+            <div class="widget-card">
+              <div class="widget-label">electronics</div>
+              <div class="widget-embed">
+                <iframe
+                  src="http://localhost:{{PORT}}/embed/electronics"
+                ></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">apparel</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/apparel"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">books</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/books"></iframe>
+              </div>
+            </div>
+            <div class="widget-card">
+              <div class="widget-label">grocery</div>
+              <div class="widget-embed">
+                <iframe src="http://localhost:{{PORT}}/embed/grocery"></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pipeline -->
+        <div class="pipeline">
+          <div class="pipeline-header">data pipeline</div>
+          <div class="pipeline-flow">
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon">
+                <img
+                  src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/apachekafka.svg"
+                  alt="Kafka"
+                  style="filter: invert(1)"
+                />
+              </div>
+              <div class="pipeline-node-text">
+                <span class="pipeline-node-name">Kafka</span>
+                <span class="pipeline-node-desc">Message broker</span>
+              </div>
+            </div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="#a78bfa"
+                  stroke-width="2"
+                >
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                </svg>
+              </div>
+              <div class="pipeline-node-text">
+                <span class="pipeline-node-name">Pathway</span>
+                <span class="pipeline-node-desc">Stream processing</span>
+              </div>
+            </div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="#00d672"
+                  stroke-width="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+              </div>
+              <div class="pipeline-node-text">
+                <span class="pipeline-node-name">StreamViz</span>
+                <span class="pipeline-node-desc">Real-time viz</span>
+              </div>
+            </div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-node">
+              <div class="pipeline-node-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="#00d4ff"
+                  stroke-width="2"
+                >
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                  <line x1="8" y1="21" x2="16" y2="21" />
+                  <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+              </div>
+              <div class="pipeline-node-text">
+                <span class="pipeline-node-name">Embed</span>
+                <span class="pipeline-node-desc">iframe widgets</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-title">StreamViz Embedding Demo</div>
+        <div class="footer-desc">
+          Each widget is an embedded <code>&lt;iframe&gt;</code> pointing to
+          <code>/embed/{widget_id}</code>. Widgets connect via WebSocket and
+          update in real-time. <br /><br />
+          <a href="http://localhost:{{PORT}}">→ View Full Dashboard</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -32,6 +32,9 @@ pathway = [
 # Kafka/Redpanda streaming support
 kafka = ["kafka-python-ng>=2.0"]
 
+# DuckDB for persistence (survives restarts)
+persistence = ["duckdb>=1.0"]
+
 # Development dependencies
 dev = [
     "pytest>=7.0",
@@ -43,6 +46,7 @@ dev = [
 all = [
     "pathway>=0.8; python_version<'3.14'",
     "kafka-python-ng>=2.0",
+    "duckdb>=1.0",
 ]
 
 [project.urls]
