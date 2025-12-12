@@ -99,23 +99,11 @@ async fn serve_frontend() -> impl IntoResponse {
 
 /// Serve a single widget in embed mode
 async fn serve_embed(Path(widget_id): Path<String>) -> impl IntoResponse {
-    // Redirect to main page with embed query params
-    // The frontend JavaScript handles the embed mode based on ?widget=xxx
+    // Inject the widget param for JS to pick up
     let html = FRONTEND_HTML.replace(
-        r#"<body class="dashboard-mode">"#,
-        &format!(r#"<body class="embed-mode" data-widget="{}">"#, widget_id)
+        "const embedWidget = params.get(\"widget\");",
+        &format!(r#"const embedWidget = "{}";"#, widget_id)
     );
-
-    // Also inject the widget param into the URL for JS to pick up
-    let html = html.replace(
-        "const params = new URLSearchParams(window.location.search);",
-        &format!(
-            r#"const params = new URLSearchParams(window.location.search);
-        params.set('widget', '{}');"#,
-            widget_id
-        )
-    );
-
     Html(html)
 }
 
