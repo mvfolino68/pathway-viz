@@ -1,224 +1,491 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamViz - Embedded Widgets Demo</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StreamViz - Embedded Widgets</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-base: #0a0a0a;
+        --bg-surface: #111111;
+        --bg-elevated: #1a1a1a;
+        --border: #262626;
+        --border-active: #404040;
+        --text: #e5e5e5;
+        --text-secondary: #a3a3a3;
+        --text-muted: #737373;
+        --accent: #00d672;
+        --accent-dim: #00a85a;
+        --cyan: #00d4ff;
+        --mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+        --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        font-family: var(--sans);
+        background: var(--bg-base);
+        min-height: 100vh;
+        color: var(--text);
+        padding: 24px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      header {
+        max-width: 1400px;
+        margin: 0 auto 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .back-link {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-decoration: none;
+      }
+      .back-link:hover {
+        color: var(--accent);
+      }
+
+      h1 {
+        font-family: var(--mono);
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      #status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+      #status.connected {
+        color: var(--accent);
+      }
+      #status.disconnected {
+        color: #ff4444;
+      }
+      #status .indicator {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      #status.connected .indicator {
+        box-shadow: 0 0 8px currentColor;
+        animation: glow 2s ease-in-out infinite;
+      }
+      @keyframes glow {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .section {
+        max-width: 1400px;
+        margin: 0 auto 32px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .section-label {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        padding: 2px 6px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+      }
+
+      .widget-count {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-muted);
+      }
+
+      .widget-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 12px;
+      }
+
+      .widget-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        position: relative;
+      }
+      .widget-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, var(--accent) 0%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      .widget-card:hover::before {
+        opacity: 0.6;
+      }
+      .widget-card:hover {
+        border-color: var(--border-active);
+      }
+
+      .widget-label {
+        padding: 10px 12px 6px;
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .widget-type {
+        font-size: 0.55rem;
+        padding: 1px 4px;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        color: var(--accent);
+      }
+
+      .widget-embed {
+        height: 160px;
+        padding: 0 6px 6px;
+      }
+      .widget-embed.tall {
+        height: 220px;
+      }
+
+      .widget-embed iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background: var(--bg-base);
+      }
+
+      #empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 0.85rem;
+      }
+      #empty-state .hint {
+        margin-top: 16px;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        opacity: 0.7;
+      }
+      #empty-state code {
+        background: var(--bg-elevated);
+        padding: 2px 6px;
+        border: 1px solid var(--border);
+        font-size: 0.7rem;
+      }
+
+      #loading {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+      #loading .dots::after {
+        content: "";
+        animation: dots 1.5s steps(4, end) infinite;
+      }
+      @keyframes dots {
+        0% {
+          content: "";
+        }
+        25% {
+          content: ".";
+        }
+        50% {
+          content: "..";
+        }
+        75% {
+          content: "...";
+        }
+      }
+
+      .docs-section {
+        max-width: 1400px;
+        margin: 40px auto 0;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .docs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .doc-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        padding: 16px;
+      }
+      .doc-card h3 {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+      .doc-card p {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+      .doc-card code {
+        background: var(--bg-elevated);
+        padding: 1px 4px;
+        border: 1px solid var(--border);
+        font-family: var(--mono);
+        font-size: 0.7rem;
+      }
+
+      .code-block {
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        padding: 12px 16px;
+        margin-top: 16px;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .code-block .tag {
+        color: var(--accent);
+      }
+      .code-block .attr {
+        color: var(--cyan);
+      }
+      .code-block .str {
+        color: #a5d6ff;
+      }
+
+      @media (max-width: 768px) {
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            color: #e0e0e0;
-            padding: 40px;
-        }
-        h1 {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(90deg, #00ff88, #00ccff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .subtitle {
-            text-align: center;
-            color: #888;
-            margin-bottom: 40px;
-        }
-        .section {
-            max-width: 1200px;
-            margin: 0 auto 40px;
-        }
-        .section h2 {
-            color: #00ff88;
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+          padding: 16px;
         }
         .widget-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
+          grid-template-columns: 1fr;
         }
-        .widget-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .widget-card h3 {
-            font-size: 0.9rem;
-            color: #888;
-            margin-bottom: 10px;
-        }
-        .widget-card iframe {
-            width: 100%;
-            height: 220px;
-            border: none;
-            border-radius: 8px;
-            background: #0d1117;
-        }
-        .code-example {
-            background: #0d1117;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 10px;
-            overflow-x: auto;
-        }
-        .code-example code {
-            color: #c9d1d9;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 0.85rem;
-            white-space: pre;
-        }
-        .code-example .tag { color: #7ee787; }
-        .code-example .attr { color: #79c0ff; }
-        .code-example .str { color: #a5d6ff; }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .feature {
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-            padding: 20px;
-            border-left: 3px solid #00ff88;
-        }
-        .feature h4 {
-            color: #00ff88;
-            margin-bottom: 8px;
-        }
-        .feature p {
-            color: #999;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-        .back-link {
-            display: inline-block;
-            color: #00ccff;
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-        }
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        .note {
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            border-radius: 8px;
-            padding: 15px 20px;
-            margin-bottom: 30px;
-            color: #a0ffc0;
-            font-size: 0.9rem;
-        }
+      }
     </style>
-</head>
-<body>
-    <a href="/" class="back-link">← Back to Dashboard</a>
-
-    <h1>Embedded Widgets</h1>
-    <p class="subtitle">Drop live analytics into any webpage with one line of HTML</p>
-
-    <div class="section">
-        <div class="note">
-            💡 These widgets are embedded using simple iframes. They automatically connect
-            to the WebSocket server and update in real-time. Try resizing your browser!
-        </div>
-
-        <h2>Live Widgets</h2>
-        <div class="widget-grid">
-            <div class="widget-card">
-                <h3>Revenue Stat</h3>
-                <iframe src="/embed/revenue?theme=dark"></iframe>
-            </div>
-            <div class="widget-card">
-                <h3>Conversion Gauge</h3>
-                <iframe src="/embed/conversion?theme=dark"></iframe>
-            </div>
-            <div class="widget-card">
-                <h3>API Health Gauge</h3>
-                <iframe src="/embed/api_health?theme=dark"></iframe>
-            </div>
-            <div class="widget-card">
-                <h3>Revenue Trend Chart</h3>
-                <iframe src="/embed/revenue_trend?theme=dark"></iframe>
-            </div>
-            <div class="widget-card">
-                <h3>Recent Orders Table</h3>
-                <iframe src="/embed/recent_orders?theme=dark" style="height: 280px;"></iframe>
-            </div>
-            <div class="widget-card">
-                <h3>Orders Per Minute</h3>
-                <iframe src="/embed/orders_trend?theme=dark"></iframe>
-            </div>
-        </div>
-    </div>
+  </head>
+  <body>
+    <header>
+      <div class="header-left">
+        <a href="/" class="back-link">← dashboard</a>
+        <h1>Embedded Widgets</h1>
+      </div>
+      <div id="status">
+        <span class="indicator"></span>
+        <span class="text">connecting</span>
+      </div>
+    </header>
 
     <div class="section">
-        <h2>How to Embed</h2>
-        <div class="code-example">
-<code><span class="tag">&lt;iframe</span>
-    <span class="attr">src</span>=<span class="str">"http://localhost:3000/embed/revenue?theme=dark"</span>
-    <span class="attr">width</span>=<span class="str">"300"</span>
-    <span class="attr">height</span>=<span class="str">"200"</span>
-    <span class="attr">frameborder</span>=<span class="str">"0"</span>
-<span class="tag">&gt;&lt;/iframe&gt;</span></code>
+      <div class="section-header">
+        <span class="section-label">live widgets</span>
+        <span class="widget-count" id="widget-count"></span>
+      </div>
+      <div id="loading">
+        <span>Discovering widgets<span class="dots"></span></span>
+      </div>
+      <div id="empty-state" style="display: none">
+        No widgets registered yet.
+        <div class="hint">
+          Create widgets with <code>sv.stat()</code>, <code>sv.chart()</code>,
+          etc.
         </div>
+      </div>
+      <div class="widget-grid" id="widget-grid" style="display: none"></div>
     </div>
 
-    <div class="section">
-        <h2>Features</h2>
-        <div class="feature-grid">
-            <div class="feature">
-                <h4>🎨 Theme Support</h4>
-                <p>Add <code>?theme=dark</code> or <code>?theme=light</code> to match your page's design</p>
-            </div>
-            <div class="feature">
-                <h4>📐 Responsive</h4>
-                <p>Widgets automatically resize to fit their container</p>
-            </div>
-            <div class="feature">
-                <h4>⚡ Real-Time</h4>
-                <p>Data updates via WebSocket - no page refresh needed</p>
-            </div>
-            <div class="feature">
-                <h4>🔗 Simple URLs</h4>
-                <p>Each widget has a predictable URL: <code>/embed/{widget_id}</code></p>
-            </div>
-            <div class="feature">
-                <h4>🌐 CORS Ready</h4>
-                <p>Works across origins - embed in any webpage</p>
-            </div>
-            <div class="feature">
-                <h4>📱 Mobile Friendly</h4>
-                <p>Touch-optimized with responsive breakpoints</p>
-            </div>
+    <div class="docs-section">
+      <div class="section-header">
+        <span class="section-label">how to embed</span>
+      </div>
+      <div class="code-block">
+        <span class="tag">&lt;iframe</span> <span class="attr">src</span>=<span
+          class="str"
+          >"http://localhost:3000/embed/{widget_id}"</span
+        >
+        <span class="attr">width</span>=<span class="str">"300"</span>
+        <span class="attr">height</span>=<span class="str">"200"</span>
+        <span class="attr">frameborder</span>=<span class="str">"0"</span>
+        <span class="tag">&gt;&lt;/iframe&gt;</span>
+      </div>
+
+      <div class="docs-grid">
+        <div class="doc-card">
+          <h3>Theme Support</h3>
+          <p>
+            Add <code>?theme=dark</code> or <code>?theme=light</code> to match
+            your page.
+          </p>
         </div>
+        <div class="doc-card">
+          <h3>Responsive</h3>
+          <p>Widgets resize to fit their container automatically.</p>
+        </div>
+        <div class="doc-card">
+          <h3>Real-Time</h3>
+          <p>Data updates via WebSocket. No page refresh needed.</p>
+        </div>
+        <div class="doc-card">
+          <h3>Simple URLs</h3>
+          <p>Each widget is at <code>/embed/{widget_id}</code></p>
+        </div>
+      </div>
     </div>
 
-    <div class="section">
-        <h2>Widget Types</h2>
-        <div class="code-example">
-<code><span class="tag"># Python API</span>
+    <script>
+      const statusEl = document.getElementById("status");
+      const loadingEl = document.getElementById("loading");
+      const emptyEl = document.getElementById("empty-state");
+      const gridEl = document.getElementById("widget-grid");
+      const countEl = document.getElementById("widget-count");
 
-<span class="attr">stat</span> = sv.stat("revenue", title="Revenue", unit="$")
-<span class="attr">gauge</span> = sv.gauge("cpu", title="CPU", max_val=100, unit="%")
-<span class="attr">chart</span> = sv.chart("trend", title="Orders/min")
-<span class="attr">table</span> = sv.table("events", columns=["time", "event"])
+      let currentWidgetIds = new Set();
 
-<span class="tag"># Each creates an embeddable widget:</span>
-<span class="tag"># /embed/revenue</span>
-<span class="tag"># /embed/cpu</span>
-<span class="tag"># /embed/trend</span>
-<span class="tag"># /embed/events</span></code>
-        </div>
-    </div>
-</body>
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function renderWidgets(widgetsConfig) {
+        loadingEl.style.display = "none";
+
+        const entries = Object.entries(widgetsConfig || {});
+        const newIds = new Set(entries.map(([id]) => id));
+
+        // Check if widget set changed
+        const sameWidgets =
+          newIds.size === currentWidgetIds.size &&
+          [...newIds].every((id) => currentWidgetIds.has(id));
+
+        if (sameWidgets && gridEl.children.length > 0) {
+          // No change in widget set, skip re-render to avoid iframe reload
+          return;
+        }
+
+        currentWidgetIds = newIds;
+
+        if (entries.length === 0) {
+          emptyEl.style.display = "block";
+          gridEl.style.display = "none";
+          countEl.textContent = "";
+          return;
+        }
+
+        emptyEl.style.display = "none";
+        gridEl.style.display = "grid";
+        gridEl.innerHTML = "";
+        countEl.textContent = `(${entries.length})`;
+
+        for (const [id, config] of entries) {
+          const card = document.createElement("div");
+          card.className = "widget-card";
+
+          const type = config.widget_type || "unknown";
+          const title = config.title || id;
+          const isTall =
+            type === "metric" || type === "table" || type === "pathway_table";
+
+          card.innerHTML = `
+                    <div class="widget-label">
+                        <span>${escapeHtml(id)}</span>
+                        <span class="widget-type">${escapeHtml(type)}</span>
+                    </div>
+                    <div class="widget-embed${isTall ? " tall" : ""}">
+                        <iframe src="/embed/${encodeURIComponent(id)}"></iframe>
+                    </div>
+                `;
+          gridEl.appendChild(card);
+        }
+      }
+
+      function connect() {
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+        ws.onopen = () => {
+          statusEl.className = "connected";
+          statusEl.querySelector(".text").textContent = "live";
+        };
+
+        ws.onclose = () => {
+          statusEl.className = "disconnected";
+          statusEl.querySelector(".text").textContent = "reconnecting";
+          setTimeout(connect, 2000);
+        };
+
+        ws.onerror = () => ws.close();
+
+        ws.onmessage = (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === "config") {
+            renderWidgets(data.widgets);
+          }
+        };
+      }
+
+      connect();
+    </script>
+  </body>
 </html>
