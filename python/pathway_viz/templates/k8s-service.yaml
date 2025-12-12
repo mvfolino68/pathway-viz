@@ -1,14 +1,14 @@
-# StreamViz Kubernetes Service
+# PathwayViz Kubernetes Service
 #
-# Exposes the StreamViz deployment within the cluster.
+# Exposes the PathwayViz deployment within the cluster.
 
 apiVersion: v1
 kind: Service
 metadata:
-  name: streamviz
+  name: pathwayviz
 spec:
   selector:
-    app: streamviz
+    app: pathwayviz
   ports:
     - port: 80
       targetPort: 3000

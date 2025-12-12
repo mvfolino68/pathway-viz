@@ -46,7 +46,7 @@ Example with multiple widgets:
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 
 orders = pw.io.kafka.read(...)
 
@@ -100,5 +100,5 @@ See the [Deployment Guide](https://github.com/mvfolino68/pathway-viz/blob/main/d
 | Variable                  | Default        | Description           |
 | ------------------------- | -------------- | --------------------- |
 | `KAFKA_BOOTSTRAP_SERVERS` | localhost:9092 | Kafka broker address  |
-| `STREAMVIZ_PORT`          | 3000           | Dashboard port        |
-| `STREAMVIZ_DATA_DIR`      | /app/data      | Persistence directory |
+| `PATHWAYVIZ_PORT`         | 3000           | Dashboard port        |
+| `PATHWAYVIZ_DATA_DIR`     | /app/data      | Persistence directory |

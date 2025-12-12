@@ -1,5 +1,5 @@
 """
-Widget implementations for StreamViz.
+Widget implementations for PathwayViz.
 
 Provides table, stat, chart, and gauge widgets with both Pathway and manual modes.
 """
@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from ._pathway_viz import send_data as _send_data
 from ._state import get_state, next_color
-from ._stream_viz import send_data as _send_data
 
 # Pathway types (optional import)
 try:

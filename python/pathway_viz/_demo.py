@@ -1,5 +1,5 @@
 """
-Built-in demo for StreamViz.
+Built-in demo for PathwayViz.
 
 Demonstrates all widget types without requiring Pathway or external dependencies.
 """
@@ -23,7 +23,7 @@ def run_demo(port: int = 3000) -> None:
     from ._server import start
 
     state = get_state()
-    state.config.title = "StreamViz Demo"
+    state.config.title = "PathwayViz Demo"
 
     # Gauges
     cpu_gauge = gauge(

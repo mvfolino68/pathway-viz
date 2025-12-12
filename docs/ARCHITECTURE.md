@@ -1,16 +1,16 @@
-# StreamViz Architecture: Embeddable Pathway Visualization
+# PathwayViz Architecture: Embeddable Pathway Visualization
 
 ## Key Insight
 
 Pathway already has `table.plot()` and `table.show()` for **Jupyter notebooks**.
-StreamViz should focus on **production dashboards** and **embeddable widgets**.
+PathwayViz should focus on **production dashboards** and **embeddable widgets**.
 
 ## Two Modes
 
 ### 1. Standalone Dashboard Mode
 
 ```python
-import stream_viz as sv
+import pathway_viz as sv
 
 sv.title("Analytics")
 sv.table(my_table)
@@ -23,7 +23,7 @@ Opens full dashboard at localhost:3000
 ### 2. Embed Mode (iframes)
 
 ```python
-import stream_viz as sv
+import pathway_viz as sv
 
 sv.configure(embed=True)
 sv.stat("revenue", title="Revenue")
@@ -46,7 +46,7 @@ sv.start()
                               │
                               ▼ WebSocket
 ┌─────────────────────────────────────────────────────────────────────┐
-│  StreamViz Server (Rust)                                            │
+│  PathwayViz Server (Rust)                                            │
 │                                                                     │
 │  Routes:                                                            │
 │    /                     → Full dashboard                           │
@@ -73,7 +73,7 @@ For framework examples (React / Next.js / Svelte), see `examples/`.
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 
 # Read from Kafka
 orders = pw.io.kafka.read(...)
@@ -102,8 +102,7 @@ per_minute = orders.windowby(
     revenue=pw.reducers.sum(pw.this.amount),
 )
 
-# === StreamViz Dashboard ===
-
+# === PathwayViz subscribes to table changes
 sv.configure(
     title="E-Commerce Analytics",
     theme="dark",

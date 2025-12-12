@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-interface StreamVizWidgetProps {
+interface PathwayVizWidgetProps {
   widgetId: string;
   serverUrl?: string;
   className?: string;
@@ -8,21 +8,21 @@ interface StreamVizWidgetProps {
 }
 
 /**
- * StreamViz Widget Component for React
+ * PathwayViz Widget Component for React
  *
- * Embeds a real-time StreamViz widget via iframe.
+ * Embeds a real-time PathwayViz widget via iframe.
  *
  * @example
  * ```tsx
- * <StreamVizWidget widgetId="revenue" className="h-32 w-full" />
+ * <PathwayVizWidget widgetId="revenue" className="h-32 w-full" />
  * ```
  */
-export function StreamVizWidget({
+export function PathwayVizWidget({
   widgetId,
   serverUrl = "http://localhost:3000",
   className = "",
   style,
-}: StreamVizWidgetProps) {
+}: PathwayVizWidgetProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function StreamVizWidget({
     if (!iframe) return;
 
     const handleError = () => {
-      console.warn(`StreamViz widget "${widgetId}" failed to load`);
+      console.warn(`PathwayViz widget "${widgetId}" failed to load`);
     };
 
     iframe.addEventListener("error", handleError);
@@ -48,7 +48,7 @@ export function StreamVizWidget({
         height: "100%",
         ...style,
       }}
-      title={`StreamViz ${widgetId}`}
+      title={`PathwayViz ${widgetId}`}
     />
   );
 }

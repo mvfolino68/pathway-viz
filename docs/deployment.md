@@ -48,7 +48,7 @@ docker run -p 3000:3000 \
 
 # With persistence volume
 docker run -p 3000:3000 \
-  -v streamviz-data:/app/data \
+  -v pathwayviz-data:/app/data \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
   pathway-viz python my_pipeline.py
 ```
@@ -69,7 +69,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Set environment variables
 ENV KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-ENV STREAMVIZ_PORT=3000
+ENV PATHWAYVIZ_PORT=3000
 
 CMD ["python", "my_pipeline.py"]
 ```
@@ -98,7 +98,7 @@ services:
       - "8081:8081" # Schema registry
       - "9644:9644" # Admin API
 
-  streamviz:
+  pathwayviz:
     build: .
     ports:
       - "3000:3000"
@@ -106,14 +106,14 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
     volumes:
       - ./my_pipeline.py:/app/my_pipeline.py
-      - streamviz-data:/app/data
+      - pathwayviz-data:/app/data
     command: python my_pipeline.py
     depends_on:
       - redpanda
     restart: unless-stopped
 
 volumes:
-  streamviz-data:
+  pathwayviz-data:
 ```
 
 ### Production Setup
@@ -122,15 +122,15 @@ volumes:
 version: "3.8"
 
 services:
-  streamviz:
-    image: your-registry/streamviz:v1.0.0
+  pathwayviz:
+    image: your-registry/pathwayviz:v1.0.0
     ports:
       - "3000:3000"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
-      - STREAMVIZ_PORT=3000
+      - PATHWAYVIZ_PORT=3000
     volumes:
-      - streamviz-data:/app/data
+      - pathwayviz-data:/app/data
     deploy:
       resources:
         limits:
@@ -159,7 +159,7 @@ services:
         max-file: "3"
 
 volumes:
-  streamviz-data:
+  pathwayviz-data:
 ```
 
 ---
@@ -172,22 +172,22 @@ volumes:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: streamviz
+  name: pathwayviz
   labels:
-    app: streamviz
+    app: pathwayviz
 spec:
-  replicas: 1 # StreamViz is stateful, single replica recommended
+  replicas: 1 # PathwayViz is stateful, single replica recommended
   selector:
     matchLabels:
-      app: streamviz
+      app: pathwayviz
   template:
     metadata:
       labels:
-        app: streamviz
+        app: pathwayviz
     spec:
       containers:
-        - name: streamviz
-          image: your-registry/streamviz:v1.0.0
+        - name: pathwayviz
+          image: your-registry/pathwayviz:v1.0.0
           ports:
             - containerPort: 3000
               name: http
@@ -195,9 +195,9 @@ spec:
             - name: KAFKA_BOOTSTRAP_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: streamviz-config
+                  name: pathwayviz-config
                   key: kafka_servers
-            - name: STREAMVIZ_PORT
+            - name: PATHWAYVIZ_PORT
               value: "3000"
           resources:
             requests:
@@ -224,7 +224,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: streamviz-pvc
+            claimName: pathwayviz-pvc
 ```
 
 ### Service
@@ -233,10 +233,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: streamviz
+  name: pathwayviz
 spec:
   selector:
-    app: streamviz
+    app: pathwayviz
   ports:
     - port: 80
       targetPort: 3000
@@ -250,18 +250,18 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: streamviz
+  name: pathwayviz
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/websocket-services: streamviz
+    nginx.ingress.kubernetes.io/websocket-services: pathwayviz
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - dashboard.example.com
-      secretName: streamviz-tls
+      secretName: pathwayviz-tls
   rules:
     - host: dashboard.example.com
       http:
@@ -270,7 +270,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: streamviz
+                name: pathwayviz
                 port:
                   number: 80
 ```
@@ -281,7 +281,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: streamviz-pvc
+  name: pathwayviz-pvc
 spec:
   accessModes:
     - ReadWriteOnce
@@ -297,7 +297,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: streamviz-config
+  name: pathwayviz-config
 data:
   kafka_servers: "kafka-0.kafka:9092,kafka-1.kafka:9092"
 ```
@@ -311,7 +311,7 @@ data:
 WebSocket support requires specific configuration:
 
 ```nginx
-upstream streamviz {
+upstream pathwayviz {
     server localhost:3000;
 }
 
@@ -323,7 +323,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/dashboard.example.com/privkey.pem;
 
     location / {
-        proxy_pass http://streamviz;
+        proxy_pass http://pathwayviz;
         proxy_http_version 1.1;
 
         # WebSocket support
@@ -363,14 +363,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - letsencrypt:/letsencrypt
 
-  streamviz:
+  pathwayviz:
     image: pathway-viz
     labels:
       - traefik.enable=true
-      - traefik.http.routers.streamviz.rule=Host(`dashboard.example.com`)
-      - traefik.http.routers.streamviz.entrypoints=websecure
-      - traefik.http.routers.streamviz.tls.certresolver=le
-      - traefik.http.services.streamviz.loadbalancer.server.port=3000
+      - traefik.http.routers.pathwayviz.rule=Host(`dashboard.example.com`)
+      - traefik.http.routers.pathwayviz.entrypoints=websecure
+      - traefik.http.routers.pathwayviz.tls.certresolver=le
+      - traefik.http.services.pathwayviz.loadbalancer.server.port=3000
 ```
 
 ---
@@ -379,8 +379,8 @@ services:
 
 | Variable                  | Default        | Description                             |
 | ------------------------- | -------------- | --------------------------------------- |
-| `STREAMVIZ_PORT`          | 3000           | Server port                             |
-| `STREAMVIZ_DATA_DIR`      | /app/data      | Data directory for persistence          |
+| `PATHWAYVIZ_PORT`         | 3000           | Server port                             |
+| `PATHWAYVIZ_DATA_DIR`     | /app/data      | Data directory for persistence          |
 | `KAFKA_BOOTSTRAP_SERVERS` | localhost:9092 | Kafka connection (use in your pipeline) |
 
 ---
@@ -423,7 +423,7 @@ services:
 
 ## Scaling Considerations
 
-StreamViz is designed as a **single-instance** application:
+PathwayViz is designed as a **single-instance** application:
 
 - Pathway runs one pipeline per process
 - WebSocket server broadcasts to all connected clients
@@ -439,4 +439,4 @@ For high throughput:
 
 1. Scale Kafka partitions
 2. Increase Pathway worker threads
-3. Add CPU/memory to StreamViz container
+3. Add CPU/memory to PathwayViz container

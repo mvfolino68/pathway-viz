@@ -1,5 +1,5 @@
 """
-Server control for StreamViz.
+Server control for PathwayViz.
 """
 
 from __future__ import annotations
@@ -8,10 +8,10 @@ import json
 import threading
 import time
 
+from ._pathway_viz import send_data as _send_data
+from ._pathway_viz import start_server as _start_server
+from ._pathway_viz import stop_server as _stop_server
 from ._state import get_state
-from ._stream_viz import send_data as _send_data
-from ._stream_viz import start_server as _start_server
-from ._stream_viz import stop_server as _stop_server
 
 
 def _send_config() -> None:
@@ -39,7 +39,7 @@ def _config_broadcaster() -> None:
 
 def start(port: int | None = None) -> None:
     """
-    Start the StreamViz server.
+    Start the PathwayViz server.
 
     Args:
         port: Port to listen on (default: 3000)
@@ -75,7 +75,7 @@ def start(port: int | None = None) -> None:
 
 
 def stop() -> None:
-    """Stop the StreamViz server."""
+    """Stop the PathwayViz server."""
     state = get_state()
     _stop_server()
     state.started = False

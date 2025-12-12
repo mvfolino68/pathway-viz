@@ -1,4 +1,4 @@
-//! State management for StreamViz
+//! State management for PathwayViz
 //!
 //! Handles ring buffers for widget data, allowing new connections
 //! to receive historical data immediately.

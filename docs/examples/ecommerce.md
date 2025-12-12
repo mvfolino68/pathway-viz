@@ -1,23 +1,23 @@
-# E-Commerce Demo (Kafka + Pathway + StreamViz + DuckDB)
+# E-Commerce Demo (Kafka + Pathway + PathwayViz + DuckDB)
 
-This is the flagship StreamViz demo. It simulates a production-ish streaming pipeline:
+This is the flagship PathwayViz demo. It simulates a production-ish streaming pipeline:
 
 ```text
-order generator → Kafka/Redpanda → Pathway aggregations → StreamViz dashboard + embeds
+order generator → Kafka/Redpanda → Pathway aggregations → PathwayViz dashboard + embeds
                                     ↘ DuckDB persistence
 ```
 
 You run it with:
 
 ```bash
-python -m stream_viz
+python -m pathway_viz
 ```
 
 ## What You Get
 
 - **A full dashboard** at `http://localhost:3000`
-- **A “portal” page** at `http://localhost:3001` that embeds StreamViz widgets via `<iframe>` (this is meant to resemble embedding into a real app)
-- **Optional persistence** via DuckDB (`./data/streamviz.duckdb`) so the demo can preload “today so far” metrics on restart
+- **A “portal” page** at `http://localhost:3001` that embeds PathwayViz widgets via `<iframe>` (this is meant to resemble embedding into a real app)
+- **Optional persistence** via DuckDB (`./data/pathwayviz.duckdb`) so the demo can preload "today so far" metrics on restart
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ pip install .[all]
 ## Run
 
 ```bash
-python -m stream_viz
+python -m pathway_viz
 ```
 
 The demo will:
@@ -58,7 +58,7 @@ The demo will:
   - totals (revenue, order_count, avg_order)
   - revenue by region
   - revenue by category
-- Update StreamViz widgets in real time
+- Update PathwayViz widgets in real time
 
 ## Widget IDs (useful for embedding)
 
@@ -80,8 +80,8 @@ http://localhost:3000/embed/{widget_id}
 
 ## Where the Demo Lives
 
-- Demo entrypoint: `python/stream_viz/demos/pathway.py` (`run_pathway_demo`)
-- Portal HTML: `python/stream_viz/demos/portal.html`
+- Demo entrypoint: `python/pathway_viz/demos/pathway.py` (`run_pathway_demo`)
+- Portal HTML: `python/pathway_viz/demos/portal.html`
 - Kafka infra: `docker-compose.yml`
 
 ## Troubleshooting
@@ -91,4 +91,4 @@ http://localhost:3000/embed/{widget_id}
 - If you see missing dependencies:
   - Install with `pip install pathway-viz[all]`
 - If port 3000 is busy:
-  - Run `python -m stream_viz --port 3100` (portal becomes 3101)
+  - Run `python -m pathway_viz --port 3100` (portal becomes 3101)

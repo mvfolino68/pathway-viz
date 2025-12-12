@@ -22,7 +22,7 @@ def run_simple_demo(port: int = 3000):
     import random
     import time
 
-    import stream_viz as sv
+    import pathway_viz as sv
 
     sv.title("My Dashboard")
 
@@ -66,13 +66,13 @@ def run_pathway_pipeline(port: int = 3000):
     """Run a Pathway pipeline with Kafka - production mode."""
     import pathway as pw
 
-    import stream_viz as sv
+    import pathway_viz as sv
 
     kafka_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
     # Read from Kafka
     events = pw.io.kafka.read(
-        rdkafka_settings={"bootstrap.servers": kafka_servers, "group.id": "streamviz"},
+        rdkafka_settings={"bootstrap.servers": kafka_servers, "group.id": "pathwayviz"},
         topic="events",
         format="json",
         autocommit_duration_ms=1000,

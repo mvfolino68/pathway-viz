@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-StreamViz CLI
+PathwayViz CLI
 
 Usage:
-    python -m stream_viz                       # Run the Pathway+Kafka demo
-    python -m stream_viz --mode simple         # Run a no-Docker demo
-    python -m stream_viz --port 8080           # Run on custom port
+    python -m pathway_viz                       # Run the Pathway+Kafka demo
+    python -m pathway_viz --mode simple         # Run a no-Docker demo
+    python -m pathway_viz --port 8080           # Run on custom port
 
     pathway-viz init my-project                 # Scaffold a new project
     pathway-viz init my-project --k8s           # Include Kubernetes manifests
@@ -20,19 +20,19 @@ import sys
 def cmd_demo(args):
     """Run the demo."""
     if args.mode == "simple":
-        import stream_viz as sv
+        import pathway_viz as sv
 
         sv.run_demo(port=args.port)
         return
 
-    from stream_viz.demos import run_demo
+    from pathway_viz.demos import run_demo
 
     run_demo(port=args.port)
 
 
 def cmd_init(args):
     """Initialize a new project."""
-    from stream_viz._cli import init_project
+    from pathway_viz._cli import init_project
 
     try:
         init_project(
@@ -47,7 +47,7 @@ def cmd_init(args):
 
 def cmd_show(args):
     """Show a template."""
-    from stream_viz._cli import show_template
+    from pathway_viz._cli import show_template
 
     try:
         show_template(args.template)
@@ -58,7 +58,7 @@ def cmd_show(args):
 
 def cmd_templates(args):
     """List available templates."""
-    from stream_viz._cli import list_templates
+    from pathway_viz._cli import list_templates
 
     list_templates()
 
@@ -66,7 +66,7 @@ def cmd_templates(args):
 def main():
     parser = argparse.ArgumentParser(
         prog="pathway-viz",
-        description="StreamViz - Real-time dashboards for streaming data",
+        description="PathwayViz - Real-time dashboards for streaming data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

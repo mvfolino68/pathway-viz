@@ -53,13 +53,13 @@ ruff format .
 ## Project Structure
 
 ```text
-stream_viz/
+pathway_viz/
 ├── src/                    # Rust code (PyO3 + Axum)
 │   ├── lib.rs             # Python module bindings
 │   ├── server.rs          # WebSocket server
 │   ├── state.rs           # Global state management
 │   └── generator.rs       # Demo data generator
-├── python/stream_viz/     # Python code (module name stays stream_viz)
+├── python/pathway_viz/    # Python code
 │   └── __init__.py        # High-level API
 ├── frontend/              # Browser frontend
 │   └── index.html         # Dashboard UI

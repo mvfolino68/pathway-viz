@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-StreamViz Demo - Real E-Commerce Analytics
+PathwayViz Demo - Real E-Commerce Analytics
 
 Production-like demo using:
 - Kafka/Redpanda for streaming
@@ -11,7 +11,7 @@ Production-like demo using:
 - Alert thresholds
 
 Usage:
-    python -m stream_viz
+    python -m pathway_viz
 """
 
 import json
@@ -26,7 +26,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import stream_viz as sv
+import pathway_viz as sv
 
 # Optional DuckDB for persistence
 try:
@@ -144,7 +144,7 @@ def stop_kafka():
 # DuckDB Persistence (Optional but recommended for production)
 # =============================================================================
 
-DATA_DIR = Path(os.getenv("STREAMVIZ_DATA_DIR", "./data"))
+DATA_DIR = Path(os.getenv("PATHWAYVIZ_DATA_DIR", "./data"))
 db = None
 
 
@@ -155,7 +155,7 @@ def init_database():
         return None
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    db = duckdb.connect(str(DATA_DIR / "streamviz.duckdb"))
+    db = duckdb.connect(str(DATA_DIR / "pathwayviz.duckdb"))
 
     # Orders table
     db.execute("""
@@ -383,7 +383,7 @@ def persist_order(order: dict):
     )
 
 
-def serve_portal(streamviz_port: int, portal_port: int):
+def serve_portal(pathwayviz_port: int, portal_port: int):
     """Serve the e-commerce portal HTML page."""
     import http.server
     import socketserver
@@ -391,7 +391,7 @@ def serve_portal(streamviz_port: int, portal_port: int):
     # Load and template the HTML
     html_path = Path(__file__).parent / "portal.html"
     html_content = html_path.read_text()
-    html_content = html_content.replace("{{PORT}}", str(streamviz_port))
+    html_content = html_content.replace("{{PORT}}", str(pathwayviz_port))
 
     class PortalHandler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
@@ -524,7 +524,7 @@ def run_pathway(stop_event: threading.Event, port: int, widgets: dict, historica
     kafka_settings = {
         "bootstrap.servers": "localhost:9092",
         "security.protocol": "plaintext",
-        "group.id": "streamviz-demo-" + str(int(time.time())),
+        "group.id": "pathwayviz-demo-" + str(int(time.time())),
         "auto.offset.reset": "latest",
     }
 
@@ -574,7 +574,7 @@ def run_pathway(stop_event: threading.Event, port: int, widgets: dict, historica
         session_orders=pw.reducers.count(),
     )
 
-    # === SUBSCRIBE TO PATHWAY TABLES AND SEND TO STREAMVIZ ===
+    # === SUBSCRIBE TO PATHWAY TABLES AND SEND TO PATHWAYVIZ ===
     # KEY: Add session values to historical baseline!
 
     # Get widget references
@@ -706,7 +706,7 @@ def run_pathway_demo(port: int = 3000):
     """
     print()
     print("  ╔═══════════════════════════════════════════════════════╗")
-    print("  ║     StreamViz - Real-Time E-Commerce Analytics        ║")
+    print("  ║    PathwayViz - Real-Time E-Commerce Analytics        ║")
     print("  ╚═══════════════════════════════════════════════════════╝")
     print()
 
@@ -737,7 +737,7 @@ def run_pathway_demo(port: int = 3000):
     # Initialize DuckDB for persistence
     init_database()
     if DUCKDB_AVAILABLE:
-        print(f"  DuckDB: {DATA_DIR}/streamviz.duckdb (data persists across restarts)")
+        print(f"  DuckDB: {DATA_DIR}/pathwayviz.duckdb (data persists across restarts)")
     else:
         print("  DuckDB not installed - data will not persist")
         print("  Install with: pip install duckdb")

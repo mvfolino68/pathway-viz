@@ -1,6 +1,6 @@
 # State Persistence
 
-By default, StreamViz is ephemeral—restart the app and all data is lost. This page covers strategies for production persistence.
+By default, PathwayViz is ephemeral—restart the app and all data is lost. This page covers strategies for production persistence.
 
 ## The Problem
 
@@ -12,7 +12,7 @@ sv.stat(totals, "revenue", title="Revenue")
 This accumulates revenue **since app start**. If you restart:
 
 - Pathway resets its internal state
-- StreamViz shows $0
+- PathwayViz shows $0
 - Historical data is gone
 
 ## The Solution: Historical Baseline Pattern
@@ -64,7 +64,7 @@ import pathway as pw
 orders = pw.io.kafka.read(
     rdkafka_settings={
         "bootstrap.servers": "localhost:9092",
-        "group.id": "streamviz-orders",  # Consistent group ID
+        "group.id": "pathwayviz-orders",  # Consistent group ID
     },
     topic="orders",
     format="json",
@@ -78,7 +78,7 @@ totals = orders.reduce(
     count=pw.reducers.count(),
 )
 
-# StreamViz
+# PathwayViz
 sv.stat(totals, "revenue", title="Revenue")
 sv.start()
 
@@ -102,7 +102,7 @@ pw.run(
 ### Limitations
 
 - Only restores Pathway's internal state
-- StreamViz ring buffers (chart history) still reset
+- PathwayViz ring buffers (chart history) still reset
 - Requires consistent `persistent_id` on sources
 
 ---
@@ -123,7 +123,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Initialize database
-db_path = Path("./data/streamviz.duckdb")
+db_path = Path("./data/pathwayviz.duckdb")
 db_path.parent.mkdir(exist_ok=True)
 db = duckdb.connect(str(db_path))
 
@@ -149,10 +149,10 @@ db.execute("""
 
 ### Persistent Widgets
 
-Wrap StreamViz widgets to also persist to DuckDB:
+Wrap PathwayViz widgets to also persist to DuckDB:
 
 ```python
-import stream_viz as sv
+import pathway_viz as sv
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -164,7 +164,7 @@ class PersistentStat:
     db: duckdb.DuckDBPyConnection
 
     def send(self, value: float, metadata: dict = None):
-        # Send to StreamViz
+        # Send to PathwayViz
         self.widget.send(value)
 
         # Persist to DuckDB
@@ -183,7 +183,7 @@ class PersistentChart:
     def send(self, value: float, timestamp: float = None):
         ts = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
 
-        # Send to StreamViz
+        # Send to PathwayViz
         self.widget.send(value, timestamp)
 
         # Persist to DuckDB (upsert)
@@ -263,10 +263,10 @@ class RedisBackedStat:
     def __init__(self, widget_id: str, widget):
         self.widget_id = widget_id
         self.widget = widget
-        self.key = f"streamviz:{widget_id}"
+        self.key = f"pathwayviz:{widget_id}"
 
     def send(self, value: float):
-        # Send to StreamViz
+        # Send to PathwayViz
         self.widget.send(value)
 
         # Persist to Redis
@@ -293,11 +293,11 @@ The most robust approach combines:
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 import duckdb
 
 # DuckDB for history
-db = duckdb.connect("./data/streamviz.duckdb")
+db = duckdb.connect("./data/pathwayviz.duckdb")
 
 # Pathway pipeline
 orders = pw.io.kafka.read(..., persistent_id="orders")
@@ -317,7 +317,7 @@ def persist_totals(key, row, time, is_addition):
 
 pw.io.subscribe(totals, on_change=persist_totals)
 
-# StreamViz (also subscribes)
+# PathwayViz (also subscribes)
 sv.stat(totals, "revenue", title="Revenue")
 sv.start()
 
@@ -338,20 +338,20 @@ Mount a volume to preserve state across container restarts:
 
 ```yaml
 services:
-  streamviz:
+  pathwayviz:
     image: pathway-viz
     volumes:
-      - streamviz-data:/app/data # DuckDB, Pathway state
+      - pathwayviz-data:/app/data # DuckDB, Pathway state
     environment:
-      - STREAMVIZ_DATA_DIR=/app/data
+      - PATHWAYVIZ_DATA_DIR=/app/data
 
 volumes:
-  streamviz-data:
+  pathwayviz-data:
 ```
 
 ```bash
 docker run -p 3000:3000 \
-  -v streamviz-data:/app/data \
+  -v pathwayviz-data:/app/data \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
   pathway-viz python my_pipeline.py
 ```
@@ -360,7 +360,7 @@ docker run -p 3000:3000 \
 
 ## Windowed Aggregations
 
-Real stream processing uses **windows**, not unbounded aggregations. StreamViz supports Pathway's windowing:
+Real stream processing uses **windows**, not unbounded aggregations. PathwayViz supports Pathway's windowing:
 
 ```python
 from datetime import timedelta

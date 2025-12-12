@@ -1,4 +1,4 @@
-# StreamViz Kubernetes Deployment
+# PathwayViz Kubernetes Deployment
 #
 # Usage:
 #   kubectl apply -f k8s-deployment.yaml
@@ -6,28 +6,28 @@
 #   kubectl apply -f k8s-ingress.yaml  # Optional, for external access
 #
 # Prerequisites:
-#   - Build and push your image: docker build -t your-registry/streamviz:v1 . && docker push ...
-#   - Create the configmap: kubectl create configmap streamviz-config --from-literal=kafka_servers=kafka:9092
+#   - Build and push your image: docker build -t your-registry/pathwayviz:v1 . && docker push ...
+#   - Create the configmap: kubectl create configmap pathwayviz-config --from-literal=kafka_servers=kafka:9092
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: streamviz
+  name: pathwayviz
   labels:
-    app: streamviz
+    app: pathwayviz
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: streamviz
+      app: pathwayviz
   template:
     metadata:
       labels:
-        app: streamviz
+        app: pathwayviz
     spec:
       containers:
-        - name: streamviz
-          image: your-registry/streamviz:latest
+        - name: pathwayviz
+          image: your-registry/pathwayviz:latest
           ports:
             - containerPort: 3000
               name: http
@@ -35,9 +35,9 @@ spec:
             - name: KAFKA_BOOTSTRAP_SERVERS
               valueFrom:
                 configMapKeyRef:
-                  name: streamviz-config
+                  name: pathwayviz-config
                   key: kafka_servers
-            - name: STREAMVIZ_PORT
+            - name: PATHWAYVIZ_PORT
               value: "3000"
           resources:
             requests:
@@ -64,12 +64,12 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: streamviz-pvc
+            claimName: pathwayviz-pvc
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: streamviz-pvc
+  name: pathwayviz-pvc
 spec:
   accessModes:
     - ReadWriteOnce

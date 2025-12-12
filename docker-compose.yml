@@ -1,4 +1,4 @@
-# StreamViz Demo Infrastructure
+# PathwayViz Demo Infrastructure
 #
 # This sets up a Redpanda cluster (Kafka-compatible) for the streaming demo.
 #
@@ -10,7 +10,7 @@
 services:
   redpanda:
     image: redpandadata/redpanda:v24.2.4
-    container_name: streamviz-redpanda
+    container_name: pathwayviz-redpanda
     command:
       - redpanda
       - start
@@ -33,7 +33,7 @@ services:
   # Create topics on startup
   init-topics:
     image: redpandadata/redpanda:v24.2.4
-    container_name: streamviz-init
+    container_name: pathwayviz-init
     depends_on:
       redpanda:
         condition: service_healthy

@@ -11,7 +11,7 @@ Real-time dashboards for streaming data pipelines. Zero config, embeddable, fast
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
@@ -23,7 +23,7 @@ pw.run()
 
 Open `http://localhost:3000` → live dashboard.
 
-Note: the Python module name is still `stream_viz` (e.g. `import stream_viz as sv`).
+Note: the Python module name is `pathway_viz` (e.g. `import pathway_viz as sv`).
 
 ## Install
 
@@ -91,7 +91,7 @@ Pre-built images are available on Docker Hub:
 docker pull mvfolino68/pathway-viz:latest
 
 # Run the simple demo
-docker run -p 3000:3000 mvfolino68/pathway-viz python -m stream_viz --mode simple
+docker run -p 3000:3000 mvfolino68/pathway-viz python -m pathway_viz --mode simple
 
 # Or use your own pipeline
 docker run -p 3000:3000 -v $(pwd)/my_pipeline.py:/app/pipeline.py \
@@ -110,7 +110,7 @@ pathway-viz templates                                     # List templates
 ## Architecture
 
 ```text
-Pathway Pipeline → PathwayViz Python (`stream_viz`) → Rust WebSocket Server → Browser
+Pathway Pipeline → PathwayViz Python (`pathway_viz`) → Rust WebSocket Server → Browser
                                               ↓
                                       Ring buffers for history
 ```

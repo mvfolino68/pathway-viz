@@ -1,10 +1,10 @@
 [package]
-name = "stream_viz"
+name = "pathway_viz"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "_stream_viz"
+name = "_pathway_viz"
 crate-type = ["cdylib"]
 
 [dependencies]

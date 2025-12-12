@@ -32,7 +32,7 @@ PathwayViz is a **visualization layer** for [Pathway](https://pathway.com/) stre
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))

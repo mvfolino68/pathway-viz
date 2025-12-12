@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 class Config:
     """Dashboard configuration."""
 
-    title: str = "StreamViz"
+    title: str = "PathwayViz"
     theme: str = "dark"
     port: int = 3000
     embed_enabled: bool = False

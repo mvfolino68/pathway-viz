@@ -1,6 +1,6 @@
-# StreamViz Kubernetes Ingress
+# PathwayViz Kubernetes Ingress
 #
-# Exposes StreamViz externally with TLS.
+# Exposes PathwayViz externally with TLS.
 #
 # Prerequisites:
 #   - Install nginx ingress controller
@@ -10,18 +10,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: streamviz
+  name: pathwayviz
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/websocket-services: streamviz
+    nginx.ingress.kubernetes.io/websocket-services: pathwayviz
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - dashboard.example.com
-      secretName: streamviz-tls
+      secretName: pathwayviz-tls
   rules:
     - host: dashboard.example.com
       http:
@@ -30,6 +30,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: streamviz
+                name: pathwayviz
                 port:
                   number: 80

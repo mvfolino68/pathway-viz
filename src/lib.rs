@@ -51,7 +51,7 @@ fn start_server(port: u16) -> PyResult<()> {
     });
 
     *handle_guard = Some(handle);
-    println!("StreamViz server started on http://localhost:{}", port);
+    println!("PathwayViz server started on http://localhost:{}", port);
     Ok(())
 }
 
@@ -123,7 +123,7 @@ fn start_dashboard(port: u16) -> PyResult<()> {
 }
 
 #[pymodule]
-fn _stream_viz(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _pathway_viz(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(start_server, m)?)?;
     m.add_function(wrap_pyfunction!(stop_server, m)?)?;
     m.add_function(wrap_pyfunction!(send_data, m)?)?;

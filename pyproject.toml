@@ -50,7 +50,7 @@ all = [
 ]
 
 [project.scripts]
-pathway-viz = "stream_viz.__main__:main"
+pathway-viz = "pathway_viz.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/mvfolino68/pathway-viz"
@@ -60,7 +60,7 @@ Issues = "https://github.com/mvfolino68/pathway-viz/issues"
 
 [tool.maturin]
 python-source = "python"
-module-name = "stream_viz._stream_viz"
+module-name = "pathway_viz._pathway_viz"
 features = ["pyo3/extension-module"]
 
 [tool.ruff]

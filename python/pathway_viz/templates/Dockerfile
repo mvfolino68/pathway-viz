@@ -19,8 +19,8 @@ COPY pipeline.py .
 # Create data directory for persistence
 RUN mkdir -p /app/data
 
-ENV STREAMVIZ_PORT=3000
-ENV STREAMVIZ_DATA_DIR=/app/data
+ENV PATHWAYVIZ_PORT=3000
+ENV PATHWAYVIZ_DATA_DIR=/app/data
 
 EXPOSE 3000
 

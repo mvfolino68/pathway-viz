@@ -34,7 +34,7 @@
 #
 #   # With DuckDB persistence (mount a volume)
 #   docker run -p 3000:3000 \
-#     -v streamviz-data:/app/data \
+#     -v pathwayviz-data:/app/data \
 #     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
 #     pathway-viz python my_pipeline.py
 #
@@ -92,15 +92,15 @@ COPY examples ./examples
 RUN mkdir -p /app/data
 
 # Environment variables
-ENV STREAMVIZ_PORT=3000
-ENV STREAMVIZ_DATA_DIR=/app/data
+ENV PATHWAYVIZ_PORT=3000
+ENV PATHWAYVIZ_DATA_DIR=/app/data
 
 # Expose the default port
 EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${STREAMVIZ_PORT}/')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PATHWAYVIZ_PORT}/')" || exit 1
 
 # Default: print usage
 CMD ["python", "-c", "print('PathwayViz container ready.\\n\\nUsage:\\n  Mount your pipeline: -v ./my_pipeline.py:/app/my_pipeline.py\\n  Run it: python my_pipeline.py\\n\\nOr run the demo with --network host')"]

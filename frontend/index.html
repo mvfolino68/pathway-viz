@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StreamViz</title>
+    <title>PathwayViz</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -395,7 +395,7 @@
       }
 
       function handleConfig(data) {
-        document.title = data.title || "StreamViz";
+        document.title = data.title || "PathwayViz";
         const toCreate = embedWidget
           ? { [embedWidget]: data.widgets?.[embedWidget] }
           : data.widgets || {};

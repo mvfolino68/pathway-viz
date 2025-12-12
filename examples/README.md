@@ -1,12 +1,12 @@
 # Framework Integration Examples
 
-Embed StreamViz widgets into your web application via iframes.
+Embed PathwayViz widgets into your web application via iframes.
 
 ## Run the Demo First
 
 ```bash
 # For embedding examples, run the full demo (enables embed endpoints)
-python -m stream_viz
+python -m pathway_viz
 ```
 
 This starts the full demo with Kafka/Redpanda, Pathway, and DuckDB persistence.
@@ -14,7 +14,7 @@ This starts the full demo with Kafka/Redpanda, Pathway, and DuckDB persistence.
 If you just want a quick sanity check without Docker:
 
 ```bash
-python -m stream_viz --mode simple
+python -m pathway_viz --mode simple
 ```
 
 ---
@@ -23,32 +23,32 @@ python -m stream_viz --mode simple
 
 ### React / Next.js
 
-Copy `nextjs/StreamVizWidget.tsx` into your project:
+Copy `nextjs/PathwayVizWidget.tsx` into your project:
 
 ```tsx
-import { StreamVizWidget } from "./StreamVizWidget";
+import { PathwayVizWidget } from "./PathwayVizWidget";
 
-<StreamVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />;
+<PathwayVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />;
 ```
 
 ### Svelte 5
 
-Copy `svelte/StreamVizWidget.svelte` into your project:
+Copy `svelte/PathwayVizWidget.svelte` into your project:
 
 ```svelte
 <script>
-  import StreamVizWidget from './StreamVizWidget.svelte';
+  import PathwayVizWidget from './PathwayVizWidget.svelte';
 </script>
 
-<StreamVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />
+<PathwayVizWidget widgetId="revenue" serverUrl="http://localhost:3000" />
 ```
 
 ## Usage
 
-1. Start StreamViz with embedding enabled:
+1. Start PathwayViz with embedding enabled:
 
    ```python
-   import stream_viz as sv
+   import pathway_viz as sv
    sv.configure(embed=True)
    sv.stat("revenue", title="Revenue", unit="$")
    sv.start()

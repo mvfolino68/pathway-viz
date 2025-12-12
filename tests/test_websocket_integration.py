@@ -6,7 +6,7 @@ import socket
 import time
 from dataclasses import dataclass
 
-import stream_viz as sv
+import pathway_viz as sv
 
 
 def _free_port() -> int:

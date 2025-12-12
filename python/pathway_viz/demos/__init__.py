@@ -1,7 +1,7 @@
 """
-StreamViz Demo
+PathwayViz Demo
 
-Run with: python -m stream_viz
+Run with: python -m pathway_viz
 
 Demonstrates real-time streaming with Pathway + Kafka and embeddable widgets.
 """
@@ -10,7 +10,7 @@ from .pathway import run_pathway_demo
 
 
 def run_demo(port: int = 3000):
-    """Run the StreamViz demo."""
+    """Run the PathwayViz demo."""
     run_pathway_demo(port=port)
 
 

@@ -1,6 +1,6 @@
 # Widgets Reference
 
-StreamViz provides four widget types for different visualization needs.
+PathwayViz provides four widget types for different visualization needs.
 
 ## stat — Big Numbers
 
@@ -225,7 +225,7 @@ Access individual widgets at:
 ### React Component
 
 ```tsx
-// components/StreamVizWidget.tsx
+// components/PathwayVizWidget.tsx
 "use client";
 import { useEffect, useRef } from "react";
 
@@ -235,7 +235,7 @@ interface Props {
   className?: string;
 }
 
-export function StreamVizWidget({
+export function PathwayVizWidget({
   widgetId,
   serverUrl = "http://localhost:3000",
   className = "",
@@ -253,13 +253,13 @@ export function StreamVizWidget({
 }
 
 // Usage
-<StreamVizWidget widgetId="revenue" className="h-32" />;
+<PathwayVizWidget widgetId="revenue" className="h-32" />;
 ```
 
 ### Svelte Component
 
 ```svelte
-<!-- StreamVizWidget.svelte -->
+<!-- PathwayVizWidget.svelte -->
 <script lang="ts">
   interface Props {
     widgetId: string;
@@ -286,7 +286,7 @@ export function StreamVizWidget({
 
 ## Layout Control
 
-Widgets appear in the order you create them. Currently, StreamViz uses a responsive grid layout automatically.
+Widgets appear in the order you create them. Currently, PathwayViz uses a responsive grid layout automatically.
 
 ```python
 # These appear in order: left to right, top to bottom
@@ -299,7 +299,7 @@ sv.table("breakdown", title="Breakdown")
 
 ## Colors
 
-StreamViz auto-assigns colors from a palette, or specify your own:
+PathwayViz auto-assigns colors from a palette, or specify your own:
 
 ```python
 sv.stat("revenue", color="#00ff88")

@@ -1,4 +1,4 @@
-# StreamViz Vision
+# PathwayViz Vision
 
 ## Mission
 
@@ -12,7 +12,7 @@ No JavaScript. No npm. No build step:
 
 ```bash
 pip install pathway-viz
-python -m stream_viz
+python -m pathway_viz
 ```
 
 The frontend is embedded in the Rust binary. You write Python, you get a dashboard.
@@ -55,7 +55,7 @@ Developers building streaming pipelines who need production dashboards (not just
 
 ## Differentiation
 
-| Feature     | Pathway + Panel | StreamViz              |
+| Feature     | Pathway + Panel | PathwayViz             |
 | ----------- | --------------- | ---------------------- |
 | Environment | Jupyter only    | Standalone server      |
 | Setup       | Bokeh knowledge | Zero config            |

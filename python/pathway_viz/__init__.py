@@ -1,11 +1,11 @@
 """
-StreamViz - The visualization layer for Pathway.
+PathwayViz - The visualization layer for Pathway.
 
 Real-time dashboards and embeddable widgets for Pathway streaming pipelines.
 
 Example (Dashboard):
     import pathway as pw
-    import stream_viz as sv
+    import pathway_viz as sv
 
     # Your Pathway pipeline
     orders = pw.io.kafka.read(...)
@@ -39,8 +39,8 @@ from typing import Any
 # Re-export public API
 from ._config import configure, title
 from ._demo import run_demo
+from ._pathway_viz import send_data as _send_data
 from ._server import start, stop
-from ._stream_viz import send_data as _send_data
 from ._widgets import chart, gauge, stat, table
 
 __version__ = "0.1.0"

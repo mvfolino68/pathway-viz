@@ -1,12 +1,12 @@
 <script lang="ts">
   /**
-   * StreamViz Widget Component for Svelte 5
+   * PathwayViz Widget Component for Svelte 5
    *
-   * Embeds a real-time StreamViz widget via iframe.
+   * Embeds a real-time PathwayViz widget via iframe.
    *
    * @example
    * ```svelte
-   * <StreamVizWidget widgetId="revenue" class="h-32 w-full" />
+   * <PathwayVizWidget widgetId="revenue" class="h-32 w-full" />
    * ```
    */
 
@@ -19,14 +19,14 @@
   let { widgetId, serverUrl = "http://localhost:3000", class: className = "" }: Props = $props();
 
   function handleError() {
-    console.warn(`StreamViz widget "${widgetId}" failed to load`);
+    console.warn(`PathwayViz widget "${widgetId}" failed to load`);
   }
 </script>
 
 <iframe
   src="{serverUrl}/embed/{widgetId}"
   class={className}
-  title="StreamViz {widgetId}"
+  title="PathwayViz {widgetId}"
   on:error={handleError}
 ></iframe>
 

@@ -1,5 +1,5 @@
 """
-StreamViz project templates.
+PathwayViz project templates.
 
 These templates are used by `pathway-viz init` to scaffold new projects.
 """

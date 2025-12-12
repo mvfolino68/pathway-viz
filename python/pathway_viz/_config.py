@@ -1,13 +1,13 @@
 """
-Configuration API for StreamViz dashboard.
+Configuration API for PathwayViz dashboard.
 """
 
 from __future__ import annotations
 
 import json
 
+from ._pathway_viz import send_data as _send_data
 from ._state import get_state
-from ._stream_viz import send_data as _send_data
 
 
 def _send_config() -> None:

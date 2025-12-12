@@ -53,9 +53,9 @@ services:
       - "3000:3000"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
-      - STREAMVIZ_PORT=3000
+      - PATHWAYVIZ_PORT=3000
     volumes:
-      - streamviz-data:/app/data
+      - pathwayviz-data:/app/data
     depends_on:
       redpanda:
         condition: service_healthy
@@ -68,4 +68,4 @@ services:
       start_period: 10s
 
 volumes:
-  streamviz-data:
+  pathwayviz-data:

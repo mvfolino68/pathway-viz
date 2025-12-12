@@ -1,6 +1,6 @@
 # Core Concepts
 
-Understanding how StreamViz, Pathway, and windowing work together.
+Understanding how PathwayViz, Pathway, and windowing work together.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Understanding how StreamViz, Pathway, and windowing work together.
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │   ┌──────────────┐         ┌──────────────┐         ┌──────────────┐   │
-│   │   Pathway    │ ──────▶ │  StreamViz   │ ──────▶ │    Rust      │   │
+│   │   Pathway    │ ──────▶ │  PathwayViz   │ ──────▶ │    Rust      │   │
 │   │   Pipeline   │  pw.io  │   Python     │  JSON   │  WebSocket   │   │
 │   │              │ subscribe│   Wrapper    │         │   Server     │   │
 │   └──────────────┘         └──────────────┘         └──────────────┘   │
@@ -36,20 +36,20 @@ Pathway is a **stream processing engine**. It:
 - Reads from sources (Kafka, files, databases, APIs)
 - Transforms data (filter, map, join)
 - Aggregates (sum, count, avg, window)
-- Outputs to sinks (databases, APIs, StreamViz)
+- Outputs to sinks (databases, APIs, PathwayViz)
 
 Pathway uses **incremental computation**: when new data arrives, it only recomputes what changed, not the entire dataset.
 
-### StreamViz
+### PathwayViz
 
-StreamViz is a **visualization sink** for Pathway. It:
+PathwayViz is a **visualization sink** for Pathway. It:
 
 - Subscribes to Pathway table changes via `pw.io.subscribe()`
 - Converts row updates to JSON messages
 - Broadcasts to browsers via WebSocket
 - Renders charts/tables/gauges in the browser
 
-**StreamViz does NOT process data.** It only visualizes what Pathway computes.
+**PathwayViz does NOT process data.** It only visualizes what Pathway computes.
 
 ### The Rust Server
 
@@ -63,31 +63,31 @@ The WebSocket server is written in Rust for performance:
 
 ### 1. Pathway Mode (Recommended)
 
-Pass Pathway tables directly to widgets. StreamViz auto-subscribes.
+Pass Pathway tables directly to widgets. PathwayViz auto-subscribes.
 
 ```python
 import pathway as pw
-import stream_viz as sv
+import pathway_viz as sv
 
 # Pathway pipeline
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
-# StreamViz subscribes automatically
+# PathwayViz subscribes automatically
 sv.stat(totals, "revenue", title="Revenue")
 
 sv.start()
 pw.run()  # Pathway drives everything
 ```
 
-When Pathway updates `totals`, StreamViz's subscription callback fires and sends the new value to browsers.
+When Pathway updates `totals`, PathwayViz's subscription callback fires and sends the new value to browsers.
 
 ### 2. Manual Mode
 
 Create widgets with string IDs and call `.send()` yourself.
 
 ```python
-import stream_viz as sv
+import pathway_viz as sv
 
 revenue = sv.stat("revenue", title="Revenue")
 sv.start()
@@ -217,7 +217,7 @@ user_sessions = events.windowby(
 )
 ```
 
-### Using Windows with StreamViz
+### Using Windows with PathwayViz
 
 ```python
 # Time series chart from windowed data
@@ -267,7 +267,7 @@ Use when: Data doesn't have timestamps, or you want real-time buckets.
 1. **Source** → Data enters via Kafka, file, API
 2. **Transform** → Pathway filters, maps, joins
 3. **Aggregate** → `reduce()` or `windowby().reduce()`
-4. **Subscribe** → StreamViz subscribes to table changes
+4. **Subscribe** → PathwayViz subscribes to table changes
 5. **Broadcast** → Rust server sends JSON to browsers
 6. **Render** → Browser updates charts/tables
 

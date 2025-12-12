@@ -1,8 +1,8 @@
 """
-Basic tests for StreamViz.
+Basic tests for PathwayViz.
 """
 
-import stream_viz as sv
+import pathway_viz as sv
 
 
 def test_version():

@@ -1,5 +1,5 @@
 """
-StreamViz test suite.
+PathwayViz test suite.
 
 Run with: pytest
 """
