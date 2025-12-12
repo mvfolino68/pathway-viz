@@ -27,17 +27,3 @@ services:
       timeout: 5s
       retries: 5
 
-  init-topics:
-    image: redpandadata/redpanda:v24.2.4
-    depends_on:
-      redpanda:
-        condition: service_healthy
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        rpk topic create orders \
-          --brokers redpanda:29092 \
-          --partitions 1 \
-          --replicas 1 || true
-        echo "Topics ready"
-    restart: "no"

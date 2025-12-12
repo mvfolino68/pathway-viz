@@ -28,10 +28,9 @@ def init_project(
 
     target.mkdir(parents=True, exist_ok=True)
 
-    # Core files
+    # Core files - just what users need to get started
     files_to_create = [
         "docker-compose.yml",
-        "Dockerfile",
         "pipeline.py",
         "README.md",
     ]
@@ -92,7 +91,7 @@ def list_templates() -> None:
     print("Available templates:\n")
 
     categories = {
-        "Docker": ["Dockerfile", "docker-compose.yml"],
+        "Docker": ["docker-compose.yml"],
         "Pipeline": ["pipeline.py", "README.md"],
     }
 
