@@ -31,3 +31,7 @@ htmlcov/
 *.so
 *.dylib
 *.pyd
+
+# Data
+data/*.duckdb
+data/*.duckdb.wal
