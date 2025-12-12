@@ -91,7 +91,7 @@ Pre-built images are available on Docker Hub:
 docker pull mvfolino68/pathway-viz:latest
 
 # Run the simple demo
-docker run -p 3000:3000 mvfolino68/pathway-viz python -m pathway_viz --mode simple
+docker run -p 3000:3000 mvfolino68/pathway-viz pathway-viz demo --mode simple
 
 # Or use your own pipeline
 docker run -p 3000:3000 -v $(pwd)/my_pipeline.py:/app/pipeline.py \

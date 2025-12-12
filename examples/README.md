@@ -6,7 +6,7 @@ Embed PathwayViz widgets into your web application via iframes.
 
 ```bash
 # For embedding examples, run the full demo (enables embed endpoints)
-python -m pathway_viz
+pathway-viz demo
 ```
 
 This starts the full demo with Kafka/Redpanda, Pathway, and DuckDB persistence.
@@ -14,7 +14,7 @@ This starts the full demo with Kafka/Redpanda, Pathway, and DuckDB persistence.
 If you just want a quick sanity check without Docker:
 
 ```bash
-python -m pathway_viz --mode simple
+pathway-viz demo --mode simple
 ```
 
 ---

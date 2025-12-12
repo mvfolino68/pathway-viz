@@ -12,7 +12,7 @@ No JavaScript. No npm. No build step:
 
 ```bash
 pip install pathway-viz
-python -m pathway_viz
+pathway-viz demo
 ```
 
 The frontend is embedded in the Rust binary. You write Python, you get a dashboard.

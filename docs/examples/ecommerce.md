@@ -10,7 +10,7 @@ order generator → Kafka/Redpanda → Pathway aggregations → PathwayViz dashb
 You run it with:
 
 ```bash
-python -m pathway_viz
+pathway-viz demo
 ```
 
 ## What You Get
@@ -47,7 +47,7 @@ pip install .[all]
 ## Run
 
 ```bash
-python -m pathway_viz
+pathway-viz demo
 ```
 
 The demo will:
@@ -91,4 +91,4 @@ http://localhost:3000/embed/{widget_id}
 - If you see missing dependencies:
   - Install with `pip install pathway-viz[all]`
 - If port 3000 is busy:
-  - Run `python -m pathway_viz --port 3100` (portal becomes 3101)
+  - Run `pathway-viz demo --port 3100` (portal becomes 3101)
