@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "pathway-viz"
-version = "0.1.1"
+version = "0.1.2"
 description = "The visualization layer for Pathway - real-time dashboards for streaming data"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,29 +24,18 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Stream processing with Pathway (recommended)
-pathway = [
+# Full demo with Kafka/Redpanda + Pathway + DuckDB persistence
+demo = [
     "pathway>=0.8; python_version<'3.14'",
+    "kafka-python-ng>=2.0",
+    "duckdb>=1.0",
 ]
-
-# Kafka/Redpanda streaming support
-kafka = ["kafka-python-ng>=2.0"]
-
-# DuckDB for persistence (survives restarts)
-persistence = ["duckdb>=1.0"]
 
 # Development dependencies
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",
     "maturin>=1.0,<2.0",
-]
-
-# All optional features
-all = [
-    "pathway>=0.8; python_version<'3.14'",
-    "kafka-python-ng>=2.0",
-    "duckdb>=1.0",
 ]
 
 [project.scripts]

@@ -456,7 +456,7 @@ def run_producer(stop_event: threading.Event, orders_chart):
         from kafka import KafkaProducer
     except ImportError:
         print("  Error: kafka-python-ng not installed")
-        print("  Run: pip install pathway-viz[kafka]")
+        print("  Run: pip install pathway-viz[demo]")
         return
 
     # Wait a moment for Kafka to be fully ready
@@ -508,7 +508,7 @@ def run_pathway(stop_event: threading.Event, port: int, widgets: dict, historica
         import pathway as pw
     except ImportError:
         print("  Error: pathway not installed")
-        print("  Run: pip install pathway-viz[pathway]")
+        print("  Run: pip install pathway-viz[demo]")
         return
 
     class OrderSchema(pw.Schema):
@@ -724,14 +724,14 @@ def run_pathway_demo(port: int = 3000):
         import pathway  # noqa: F401
     except ImportError:
         print("  Error: pathway not installed")
-        print("  Run: pip install pathway-viz[pathway]")
+        print("  Run: pip install pathway-viz[demo]")
         sys.exit(1)
 
     try:
         from kafka import KafkaProducer  # noqa: F401
     except ImportError:
         print("  Error: kafka-python-ng not installed")
-        print("  Run: pip install pathway-viz[kafka]")
+        print("  Run: pip install pathway-viz[demo]")
         sys.exit(1)
 
     # Initialize DuckDB for persistence

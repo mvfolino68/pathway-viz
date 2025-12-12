@@ -11,7 +11,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install pathway-viz with all optional dependencies
-RUN pip install --no-cache-dir "pathway-viz[all]"
+RUN pip install --no-cache-dir "pathway-viz[demo]"
 
 # Copy your pipeline
 COPY pipeline.py .

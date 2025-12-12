@@ -33,7 +33,7 @@ Optional but recommended:
 If you installed from PyPI:
 
 ```bash
-pip install pathway-viz[all]
+pip install pathway-viz[demo]
 ```
 
 If you’re running from this repo, build the Rust extension and install optional deps:
@@ -41,7 +41,7 @@ If you’re running from this repo, build the Rust extension and install optiona
 ```bash
 pip install maturin
 maturin develop
-pip install .[all]
+pip install .[demo]
 ```
 
 ## Run
@@ -89,6 +89,6 @@ http://localhost:3000/embed/{widget_id}
 - If you see “Docker not found”:
   - Install Docker Desktop
 - If you see missing dependencies:
-  - Install with `pip install pathway-viz[all]`
+  - Install with `pip install pathway-viz[demo]`
 - If port 3000 is busy:
   - Run `pathway-viz demo --port 3100` (portal becomes 3101)

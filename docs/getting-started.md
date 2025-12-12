@@ -8,20 +8,35 @@
 ## Installation
 
 ```bash
-pip install pathway-viz            # Basic
-pip install pathway-viz[pathway]   # With Pathway support
-pip install pathway-viz[all]       # Everything (Pathway, Kafka, DuckDB)
+# Basic package - simple demo only
+pip install pathway-viz
+
+# Full demo - includes Kafka/Redpanda + Pathway + DuckDB
+pip install pathway-viz[demo]
 ```
 
-## Run the Demo
+## Run demos
 
 ```bash
-# No-Docker demo (works immediately after install)
+# Simple demo - works immediately after basic install
 pathway-viz demo --mode simple
 
-# E-commerce demo (Kafka + Pathway, requires Docker)
+# Full e-commerce demo - requires pathway-viz[demo] and Docker
 pathway-viz demo
 ```
+
+The simple demo shows:
+
+- Live stat, chart, gauge, and table widgets
+- Simulated metrics updating in real-time
+- No external dependencies required
+
+The full demo includes:
+
+- Kafka/Redpanda message streaming
+- Pathway data processing
+- DuckDB persistence (data survives restarts)
+- Embedded widget examples
 
 ## Scaffold a New Project
 

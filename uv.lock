@@ -1770,11 +1770,11 @@ wheels = [
 
 [[package]]
 name = "pathway-viz"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 
 [package.optional-dependencies]
-all = [
+demo = [
     { name = "duckdb" },
     { name = "kafka-python-ng" },
     { name = "pathway", marker = "python_full_version < '3.14'" },
@@ -1784,25 +1784,13 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
-kafka = [
-    { name = "kafka-python-ng" },
-]
-pathway = [
-    { name = "pathway", marker = "python_full_version < '3.14'" },
-]
-persistence = [
-    { name = "duckdb" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "duckdb", marker = "extra == 'all'", specifier = ">=1.0" },
-    { name = "duckdb", marker = "extra == 'persistence'", specifier = ">=1.0" },
-    { name = "kafka-python-ng", marker = "extra == 'all'", specifier = ">=2.0" },
-    { name = "kafka-python-ng", marker = "extra == 'kafka'", specifier = ">=2.0" },
+    { name = "duckdb", marker = "extra == 'demo'", specifier = ">=1.0" },
+    { name = "kafka-python-ng", marker = "extra == 'demo'", specifier = ">=2.0" },
     { name = "maturin", marker = "extra == 'dev'", specifier = ">=1.0,<2.0" },
-    { name = "pathway", marker = "python_full_version < '3.14' and extra == 'all'", specifier = ">=0.8" },
-    { name = "pathway", marker = "python_full_version < '3.14' and extra == 'pathway'", specifier = ">=0.8" },
+    { name = "pathway", marker = "python_full_version < '3.14' and extra == 'demo'", specifier = ">=0.8" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
 ]

@@ -25,24 +25,34 @@ Open `http://localhost:3000` → live dashboard.
 
 Note: the Python module name is `pathway_viz` (e.g. `import pathway_viz as pv`).
 
-## Install
-
-```bash
-pip install pathway-viz            # Basic
-pip install pathway-viz[pathway]   # With Pathway
-pip install pathway-viz[all]       # Everything
-```
-
 ## Quick Start
 
 ```bash
 pip install pathway-viz
+import pathway_viz as pv
 
-# Run demos
-pathway-viz demo --mode simple   # No Docker required
-pathway-viz demo                 # E-commerce demo (requires Docker)
+pv.stat("revenue", title="Revenue", unit="$")
+pv.start()
+```
 
-# Scaffold a new project
+## Installation
+
+```bash
+# Basic package (simple demo, no external dependencies)
+pip install pathway-viz
+
+# Full demo with Kafka/Redpanda + Pathway + DuckDB
+pip install pathway-viz[demo]
+```
+
+## Run demos
+
+pathway-viz demo --mode simple # No Docker required
+pathway-viz demo # E-commerce demo (requires Docker)
+
+## Scaffold a new project
+
+```bash
 pathway-viz init my-dashboard           # Creates project with Docker files
 pathway-viz init my-dashboard --k8s     # Include Kubernetes manifests
 

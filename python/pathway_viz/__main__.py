@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+import importlib.util
 import sys
 
 
@@ -24,6 +25,20 @@ def cmd_demo(args):
 
         pv.run_demo(port=args.port)
         return
+
+    # Check for demo dependencies
+    missing = []
+    if not importlib.util.find_spec("pathway"):
+        missing.append("pathway")
+    if not importlib.util.find_spec("kafka"):
+        missing.append("kafka-python-ng")
+    if not importlib.util.find_spec("duckdb"):
+        missing.append("duckdb")
+
+    if missing:
+        print(f"\n  Error: {', '.join(missing)} not installed")
+        print("  Run: pip install pathway-viz[demo]\n")
+        sys.exit(1)
 
     from pathway_viz.demos import run_demo
 
@@ -81,7 +96,7 @@ def main():
         "--mode",
         choices=["pathway", "simple"],
         default="pathway",
-        help="'pathway' (requires Kafka) or 'simple' (no Docker)",
+        help="'pathway' (full demo with Kafka/Redpanda, requires pathway-viz[demo]) or 'simple' (basic demo, no dependencies)",
     )
     demo_parser.set_defaults(func=cmd_demo)
 
