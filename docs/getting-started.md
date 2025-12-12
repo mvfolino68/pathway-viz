@@ -4,31 +4,37 @@
 
 - Python 3.11+
 - Docker (only required for the Kafka/Redpanda demo)
-- Rust (only required for building from source)
 
 ## Installation
 
 ```bash
-# Clone the repo
-git clone https://github.com/yourusername/stream-viz.git
-cd stream-viz
-
-# Build from source (Rust required)
-pip install maturin
-maturin develop
-
-# Install dependencies
-pip install pathway kafka-python-ng duckdb
+pip install stream-viz            # Basic
+pip install stream-viz[pathway]   # With Pathway support
+pip install stream-viz[all]       # Everything (Pathway, Kafka, DuckDB)
 ```
 
 ## Run the Demo
 
 ```bash
-# No-Docker demo (manual send loop)
-python -m stream_viz --mode simple
+# No-Docker demo (works immediately after install)
+stream-viz demo --mode simple
 
-# E-commerce demo (Kafka + Pathway + optional DuckDB persistence, requires Docker)
-python -m stream_viz
+# E-commerce demo (Kafka + Pathway, requires Docker)
+stream-viz demo
+```
+
+## Scaffold a New Project
+
+```bash
+# Create a project with Docker files
+stream-viz init my-dashboard
+cd my-dashboard
+
+# Start with Docker
+docker compose up -d
+
+# Or run without Docker
+python pipeline.py --mode simple
 ```
 
 The e-commerce demo will:
