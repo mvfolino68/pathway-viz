@@ -1,4 +1,4 @@
-# Contributing to StreamViz
+# Contributing to PathwayViz
 
 Thank you for your interest in contributing! This guide will help you get started.
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This guide will help you get starte
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/stream-viz.git
-cd stream-viz
+git clone https://github.com/mvfolino68/pathway-viz.git
+cd pathway-viz
 
 # Create a virtual environment
 python -m venv .venv
@@ -59,7 +59,7 @@ stream_viz/
 │   ├── server.rs          # WebSocket server
 │   ├── state.rs           # Global state management
 │   └── generator.rs       # Demo data generator
-├── python/stream_viz/     # Python code
+├── python/stream_viz/     # Python code (module name stays stream_viz)
 │   └── __init__.py        # High-level API
 ├── frontend/              # Browser frontend
 │   └── index.html         # Dashboard UI

@@ -5,7 +5,7 @@
 #   - Release tags (v*)
 #   - Manual dispatch
 #
-# Images are published to: docker.io/mvfolino68/stream-viz
+# Images are published to: docker.io/mvfolino68/pathway-viz
 #
 # Required secrets:
 #   - DOCKERHUB_USERNAME: Your Docker Hub username (mvfolino68)
@@ -21,7 +21,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: mvfolino68/stream-viz
+  IMAGE_NAME: mvfolino68/pathway-viz
 
 jobs:
   build-and-push:

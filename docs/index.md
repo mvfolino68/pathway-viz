@@ -1,35 +1,33 @@
-# StreamViz Documentation
+# PathwayViz Documentation
 
 Real-time dashboards for Kafka/Redpanda streaming pipelines.
 
 ## Quick Start
 
 ```bash
-# Install (from source for now)
-git clone https://github.com/yourusername/stream-viz.git
-cd stream-viz
-pip install maturin
-maturin develop
-pip install pathway kafka-python-ng duckdb
+pip install pathway-viz
 
-# Run the demo
-python -m stream_viz
+# No-Docker demo
+pathway-viz demo --mode simple
+
+# Kafka + Pathway demo (requires Docker)
+pathway-viz demo
 ```
 
 Opens:
 
-- **Dashboard**: http://localhost:3000
-- **Portal**: http://localhost:3001 (embedded widgets demo)
+- **Dashboard**: <http://localhost:3000>
+- **Portal**: <http://localhost:3001> (embedded widgets demo)
 
 The demo auto-starts Kafka (Redpanda) via Docker.
 
-## What is StreamViz?
+## What is PathwayViz?
 
-StreamViz is a **visualization layer** for [Pathway](https://pathway.com/) streaming pipelines:
+PathwayViz is a **visualization layer** for [Pathway](https://pathway.com/) streaming pipelines:
 
 - **Kafka/Redpanda** → ingests data
 - **Pathway** → processes streams (aggregations, windows)
-- **StreamViz** → displays real-time dashboards
+- **PathwayViz** → displays real-time dashboards
 - **DuckDB** → persists data (survives restarts)
 
 ```python
@@ -47,7 +45,7 @@ pw.run()
 ## Documentation
 
 - **[Getting Started](./getting-started.md)** — Installation and first dashboard
-- **[Concepts](./concepts.md)** — How Pathway, windowing, and StreamViz work
+- **[Concepts](./concepts.md)** — How Pathway, windowing, and PathwayViz work
 - **[Widgets](./widgets.md)** — stat, chart, gauge, table reference
 - **[Persistence](./persistence.md)** — DuckDB for surviving restarts
 - **[Deployment](./deployment.md)** — Docker, Kubernetes

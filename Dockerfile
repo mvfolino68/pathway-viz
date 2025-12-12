@@ -1,21 +1,21 @@
-# StreamViz Production Docker Image
+# PathwayViz Production Docker Image
 #
 # ==============================================================================
 # BUILD
 # ==============================================================================
 #
 #   # Build the image
-#   docker build -t stream-viz .
+#   docker build -t pathway-viz .
 #
 #   # Build with specific Python version
-#   docker build --build-arg PYTHON_VERSION=3.11 -t stream-viz .
+#   docker build --build-arg PYTHON_VERSION=3.11 -t pathway-viz .
 #
 # ==============================================================================
 # RUN - DEMO MODE
 # ==============================================================================
 #
 #   # Run the demo (requires Kafka on host or docker network)
-#   docker run -p 3000:3000 -p 3001:3001 --network host stream-viz
+#   docker run -p 3000:3000 -p 3001:3001 --network host pathway-viz
 #
 # ==============================================================================
 # RUN - PRODUCTION (Your own pipeline)
@@ -24,19 +24,19 @@
 #   # Mount your pipeline script
 #   docker run -p 3000:3000 \
 #     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-#     stream-viz python my_pipeline.py
+#     pathway-viz python my_pipeline.py
 #
 #   # With environment variables for Kafka
 #   docker run -p 3000:3000 \
 #     -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
 #     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-#     stream-viz python my_pipeline.py
+#     pathway-viz python my_pipeline.py
 #
 #   # With DuckDB persistence (mount a volume)
 #   docker run -p 3000:3000 \
 #     -v streamviz-data:/app/data \
 #     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-#     stream-viz python my_pipeline.py
+#     pathway-viz python my_pipeline.py
 #
 # ==============================================================================
 
@@ -103,4 +103,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${STREAMVIZ_PORT}/')" || exit 1
 
 # Default: print usage
-CMD ["python", "-c", "print('StreamViz container ready.\\n\\nUsage:\\n  Mount your pipeline: -v ./my_pipeline.py:/app/my_pipeline.py\\n  Run it: python my_pipeline.py\\n\\nOr run the demo with --network host')"]
+CMD ["python", "-c", "print('PathwayViz container ready.\\n\\nUsage:\\n  Mount your pipeline: -v ./my_pipeline.py:/app/my_pipeline.py\\n  Run it: python my_pipeline.py\\n\\nOr run the demo with --network host')"]

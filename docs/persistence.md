@@ -339,7 +339,7 @@ Mount a volume to preserve state across container restarts:
 ```yaml
 services:
   streamviz:
-    image: stream-viz
+    image: pathway-viz
     volumes:
       - streamviz-data:/app/data # DuckDB, Pathway state
     environment:
@@ -353,7 +353,7 @@ volumes:
 docker run -p 3000:3000 \
   -v streamviz-data:/app/data \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-  stream-viz python my_pipeline.py
+  pathway-viz python my_pipeline.py
 ```
 
 ---

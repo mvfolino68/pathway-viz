@@ -1,13 +1,13 @@
-# My StreamViz Dashboard
+# My PathwayViz Dashboard
 
-Real-time dashboard powered by [StreamViz](https://github.com/mvfolino68/stream-viz).
+Real-time dashboard powered by [PathwayViz](https://github.com/mvfolino68/pathway-viz).
 
 ## Quick Start
 
 ### Option 1: Simple Demo (No Docker)
 
 ```bash
-pip install stream-viz
+pip install pathway-viz
 python pipeline.py --mode simple
 ```
 
@@ -22,13 +22,13 @@ docker compose up -d
 This starts:
 
 - **Redpanda** (Kafka-compatible) on port 9092
-- **StreamViz** dashboard on port 3000
+- **PathwayViz** dashboard on port 3000
 
 ## Project Structure
 
 ```text
 .
-├── docker-compose.yml   # Full stack: Redpanda + StreamViz
+├── docker-compose.yml   # Full stack: Redpanda + PathwayViz
 ├── Dockerfile           # Container for your pipeline
 ├── pipeline.py          # Your streaming pipeline
 └── README.md
@@ -88,7 +88,7 @@ Then embed:
 
 ## Production Deployment
 
-See the [Deployment Guide](https://github.com/mvfolino68/stream-viz/blob/main/docs/deployment.md) for:
+See the [Deployment Guide](https://github.com/mvfolino68/pathway-viz/blob/main/docs/deployment.md) for:
 
 - Kubernetes manifests
 - Reverse proxy configuration

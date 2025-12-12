@@ -1,17 +1,17 @@
-# StreamViz Pipeline
+# PathwayViz Pipeline
 #
-# Build:  docker build -t my-streamviz .
-# Run:    docker run -p 3000:3000 my-streamviz
+# Build:  docker build -t my-pathway-viz .
+# Run:    docker run -p 3000:3000 my-pathway-viz
 #
 # Or use the pre-built image:
-#   docker pull mvfolino68/stream-viz:latest
+#   docker pull mvfolino68/pathway-viz:latest
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install stream-viz with all optional dependencies
-RUN pip install --no-cache-dir "stream-viz[all]"
+# Install pathway-viz with all optional dependencies
+RUN pip install --no-cache-dir "pathway-viz[all]"
 
 # Copy your pipeline
 COPY pipeline.py .

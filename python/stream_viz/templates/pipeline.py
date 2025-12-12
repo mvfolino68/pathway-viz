@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-StreamViz Pipeline Template
+PathwayViz Pipeline Template
 
-This is a starter template for building real-time dashboards with Pathway and StreamViz.
+This is a starter template for building real-time dashboards with Pathway and PathwayViz.
 
 Run locally (no Docker):
     python pipeline.py --mode simple
@@ -94,7 +94,7 @@ def run_pathway_pipeline(port: int = 3000):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="StreamViz Pipeline")
+    parser = argparse.ArgumentParser(description="PathwayViz Pipeline")
     parser.add_argument("--port", "-p", type=int, default=3000, help="Server port")
     parser.add_argument(
         "--mode",

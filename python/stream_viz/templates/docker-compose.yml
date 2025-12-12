@@ -1,4 +1,4 @@
-# StreamViz Production Stack
+# PathwayViz Production Stack
 #
 # Usage:
 #   docker compose up -d          # Start everything
@@ -7,7 +7,7 @@
 #
 # This runs:
 #   - Redpanda (Kafka-compatible message broker)
-#   - Your StreamViz pipeline
+#   - Your PathwayViz pipeline
 
 services:
   redpanda:

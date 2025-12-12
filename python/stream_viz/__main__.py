@@ -7,10 +7,10 @@ Usage:
     python -m stream_viz --mode simple         # Run a no-Docker demo
     python -m stream_viz --port 8080           # Run on custom port
 
-    stream-viz init my-project                 # Scaffold a new project
-    stream-viz init my-project --k8s           # Include Kubernetes manifests
-    stream-viz show docker-compose             # Print template to stdout
-    stream-viz templates                       # List available templates
+    pathway-viz init my-project                 # Scaffold a new project
+    pathway-viz init my-project --k8s           # Include Kubernetes manifests
+    pathway-viz show docker-compose             # Print template to stdout
+    pathway-viz templates                       # List available templates
 """
 
 import argparse
@@ -65,7 +65,7 @@ def cmd_templates(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="stream-viz",
+        prog="pathway-viz",
         description="StreamViz - Real-time dashboards for streaming data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

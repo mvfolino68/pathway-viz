@@ -1,7 +1,7 @@
 """
 StreamViz project templates.
 
-These templates are used by `stream-viz init` to scaffold new projects.
+These templates are used by `pathway-viz init` to scaffold new projects.
 """
 
 from pathlib import Path

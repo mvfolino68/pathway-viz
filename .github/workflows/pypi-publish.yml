@@ -3,9 +3,9 @@
 # Triggers on version tags (v*)
 #
 # PyPI Trusted Publisher settings:
-#   - Project name: stream-viz
+#   - Project name: pathway-viz
 #   - Owner: mvfolino68
-#   - Repository: stream-viz
+#   - Repository: pathway-viz
 #   - Workflow: pypi-publish.yml
 #   - Environment: pypi
 

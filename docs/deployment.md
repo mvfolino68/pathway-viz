@@ -1,10 +1,10 @@
 # Deployment Guide
 
-How to deploy StreamViz in production environments.
+How to deploy PathwayViz in production environments.
 
 ## Overview
 
-StreamViz runs as a single Python process that:
+PathwayViz runs as a single Python process that:
 
 1. Runs your Pathway pipeline
 2. Serves the dashboard UI
@@ -24,11 +24,11 @@ For production, you typically:
 ### Build the Image
 
 ```bash
-# From the stream-viz repo
-docker build -t stream-viz .
+# From the pathway-viz repo
+docker build -t pathway-viz .
 
 # Or with specific Python version
-docker build --build-arg PYTHON_VERSION=3.11 -t stream-viz .
+docker build --build-arg PYTHON_VERSION=3.11 -t pathway-viz .
 ```
 
 ### Run Your Pipeline
@@ -37,20 +37,20 @@ docker build --build-arg PYTHON_VERSION=3.11 -t stream-viz .
 # Mount your pipeline script
 docker run -p 3000:3000 \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-  stream-viz python my_pipeline.py
+  pathway-viz python my_pipeline.py
 
 # With Kafka on the same Docker network
 docker run -p 3000:3000 \
   --network my-network \
   -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-  stream-viz python my_pipeline.py
+  pathway-viz python my_pipeline.py
 
 # With persistence volume
 docker run -p 3000:3000 \
   -v streamviz-data:/app/data \
   -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-  stream-viz python my_pipeline.py
+  pathway-viz python my_pipeline.py
 ```
 
 ### Custom Dockerfile
@@ -58,7 +58,7 @@ docker run -p 3000:3000 \
 For production, create your own Dockerfile:
 
 ```dockerfile
-FROM stream-viz:latest
+FROM pathway-viz:latest
 
 # Copy your pipeline
 COPY my_pipeline.py /app/
@@ -364,7 +364,7 @@ services:
       - letsencrypt:/letsencrypt
 
   streamviz:
-    image: stream-viz
+    image: pathway-viz
     labels:
       - traefik.enable=true
       - traefik.http.routers.streamviz.rule=Host(`dashboard.example.com`)

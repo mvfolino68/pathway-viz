@@ -1,5 +1,5 @@
 """
-StreamViz CLI commands for project scaffolding and templates.
+PathwayViz CLI commands for project scaffolding and templates.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ def init_project(
     force: bool = False,
 ) -> None:
     """
-    Initialize a new StreamViz project with deployment files.
+    Initialize a new PathwayViz project with deployment files.
 
     Args:
         target_dir: Directory to create the project in
@@ -124,5 +124,5 @@ def list_templates() -> None:
         print()
 
     print("Usage:")
-    print("  stream-viz show docker-compose    # Print to stdout")
-    print("  stream-viz init my-project        # Create project directory")
+    print("  pathway-viz show docker-compose    # Print to stdout")
+    print("  pathway-viz init my-project        # Create project directory")

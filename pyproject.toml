@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "stream-viz"
+name = "pathway-viz"
 version = "0.1.0"
 description = "The visualization layer for Pathway - real-time dashboards for streaming data"
 readme = "README.md"
@@ -50,13 +50,13 @@ all = [
 ]
 
 [project.scripts]
-stream-viz = "stream_viz.__main__:main"
+pathway-viz = "stream_viz.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/mvfolino68/stream-viz"
-Repository = "https://github.com/mvfolino68/stream-viz"
-Documentation = "https://github.com/mvfolino68/stream-viz#readme"
-Issues = "https://github.com/mvfolino68/stream-viz/issues"
+Homepage = "https://github.com/mvfolino68/pathway-viz"
+Repository = "https://github.com/mvfolino68/pathway-viz"
+Documentation = "https://github.com/mvfolino68/pathway-viz#readme"
+Issues = "https://github.com/mvfolino68/pathway-viz/issues"
 
 [tool.maturin]
 python-source = "python"

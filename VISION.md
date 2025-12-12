@@ -11,7 +11,7 @@ Real-time dashboards for streaming data pipelines. Production-ready visualizatio
 No JavaScript. No npm. No build step:
 
 ```bash
-pip install stream-viz
+pip install pathway-viz
 python -m stream_viz
 ```
 

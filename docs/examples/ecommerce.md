@@ -33,7 +33,7 @@ Optional but recommended:
 If you installed from PyPI:
 
 ```bash
-pip install stream-viz[all]
+pip install pathway-viz[all]
 ```
 
 If you’re running from this repo, build the Rust extension and install optional deps:
@@ -89,6 +89,6 @@ http://localhost:3000/embed/{widget_id}
 - If you see “Docker not found”:
   - Install Docker Desktop
 - If you see missing dependencies:
-  - Install with `pip install stream-viz[all]`
+  - Install with `pip install pathway-viz[all]`
 - If port 3000 is busy:
   - Run `python -m stream_viz --port 3100` (portal becomes 3101)

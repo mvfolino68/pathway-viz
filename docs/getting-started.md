@@ -8,26 +8,26 @@
 ## Installation
 
 ```bash
-pip install stream-viz            # Basic
-pip install stream-viz[pathway]   # With Pathway support
-pip install stream-viz[all]       # Everything (Pathway, Kafka, DuckDB)
+pip install pathway-viz            # Basic
+pip install pathway-viz[pathway]   # With Pathway support
+pip install pathway-viz[all]       # Everything (Pathway, Kafka, DuckDB)
 ```
 
 ## Run the Demo
 
 ```bash
 # No-Docker demo (works immediately after install)
-stream-viz demo --mode simple
+pathway-viz demo --mode simple
 
 # E-commerce demo (Kafka + Pathway, requires Docker)
-stream-viz demo
+pathway-viz demo
 ```
 
 ## Scaffold a New Project
 
 ```bash
 # Create a project with Docker files
-stream-viz init my-dashboard
+pathway-viz init my-dashboard
 cd my-dashboard
 
 # Start with Docker
@@ -46,8 +46,8 @@ The e-commerce demo will:
 
 **URLs:**
 
-- Dashboard: http://localhost:3000
-- Portal (embedded widgets): http://localhost:3001
+- Dashboard: <http://localhost:3000>
+- Portal (embedded widgets): <http://localhost:3001>
 
 ## What the Demo Shows
 
