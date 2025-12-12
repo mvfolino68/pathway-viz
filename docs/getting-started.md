@@ -41,14 +41,27 @@ The full demo includes:
 ## Scaffold a New Project
 
 ```bash
-# Create a project with Docker files
+# Create a new project
 pathway-viz init my-dashboard
 cd my-dashboard
 
-# Start with Docker
+# Start Kafka (for streaming demos)
 docker compose up -d
 
-# Or run without Docker
+# Run your pipeline
+python pipeline.py
+```
+
+This creates:
+
+- `pipeline.py` - Your data pipeline template
+- `docker-compose.yml` - Kafka/Redpanda for streaming
+- `Dockerfile` - For containerizing your app
+- `README.md` - Project documentation
+
+Or run without Docker:
+
+```bash
 python pipeline.py --mode simple
 ```
 

@@ -53,12 +53,12 @@ pathway-viz demo # E-commerce demo (requires Docker)
 ## Scaffold a new project
 
 ```bash
-pathway-viz init my-dashboard           # Creates project with Docker files
-pathway-viz init my-dashboard --k8s     # Include Kubernetes manifests
+pathway-viz init my-dashboard           # Creates a new project
 
 # View templates
-pathway-viz templates                   # List all templates
-pathway-viz show docker-compose         # Print template to stdout
+pathway-viz templates                   # List available templates
+pathway-viz show pipeline               # View pipeline template
+pathway-viz show docker-compose         # View Docker compose template
 ```
 
 ## Widgets

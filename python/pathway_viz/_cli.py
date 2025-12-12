@@ -4,15 +4,13 @@ PathwayViz CLI commands for project scaffolding and templates.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
-TEMPLATES_DIR = Path(__file__).parent / "templates"
+from pathway_viz.templates import get_template
 
 
 def init_project(
     target_dir: str,
-    include_k8s: bool = False,
     force: bool = False,
 ) -> None:
     """
@@ -20,7 +18,6 @@ def init_project(
 
     Args:
         target_dir: Directory to create the project in
-        include_k8s: Include Kubernetes manifests
         force: Overwrite existing files
     """
     target = Path(target_dir)
@@ -32,37 +29,21 @@ def init_project(
     target.mkdir(parents=True, exist_ok=True)
 
     # Core files
-    files_to_copy = [
+    files_to_create = [
         "docker-compose.yml",
         "Dockerfile",
         "pipeline.py",
         "README.md",
     ]
 
-    for filename in files_to_copy:
-        src = TEMPLATES_DIR / filename
-        dst = target / filename
-        if src.exists():
-            shutil.copy(src, dst)
+    for filename in files_to_create:
+        try:
+            content = get_template(filename)
+            dst = target / filename
+            dst.write_text(content)
             print(f"  Created {filename}")
-
-    # Kubernetes files
-    if include_k8s:
-        k8s_dir = target / "k8s"
-        k8s_dir.mkdir(exist_ok=True)
-
-        k8s_files = [
-            ("k8s-deployment.yaml", "deployment.yaml"),
-            ("k8s-service.yaml", "service.yaml"),
-            ("k8s-ingress.yaml", "ingress.yaml"),
-        ]
-
-        for src_name, dst_name in k8s_files:
-            src = TEMPLATES_DIR / src_name
-            dst = k8s_dir / dst_name
-            if src.exists():
-                shutil.copy(src, dst)
-                print(f"  Created k8s/{dst_name}")
+        except FileNotFoundError:
+            print(f"  Warning: Template '{filename}' not found, skipping")
 
     print(f"\n✓ Project initialized in {target}/")
     print("\nNext steps:")
@@ -86,40 +67,40 @@ def show_template(name: str) -> None:
         "dockerfile": "Dockerfile",
         "pipeline": "pipeline.py",
         "readme": "README.md",
-        "k8s-deployment": "k8s-deployment.yaml",
-        "k8s-service": "k8s-service.yaml",
-        "k8s-ingress": "k8s-ingress.yaml",
-        "deployment": "k8s-deployment.yaml",
-        "service": "k8s-service.yaml",
-        "ingress": "k8s-ingress.yaml",
     }
 
     filename = name_map.get(name.lower(), name)
-    template_path = TEMPLATES_DIR / filename
 
-    if not template_path.exists():
-        available = [f.name for f in TEMPLATES_DIR.iterdir() if not f.name.startswith("_")]
+    try:
+        content = get_template(filename)
+        print(content)
+    except FileNotFoundError:
+        from pathway_viz.templates import list_templates as get_all_templates
+
+        available = get_all_templates()
         raise FileNotFoundError(
             f"Template '{name}' not found.\nAvailable templates: {', '.join(sorted(available))}"
         )
 
-    print(template_path.read_text())
-
 
 def list_templates() -> None:
     """List all available templates."""
+    from pathway_viz.templates import list_templates as get_all_templates
+
+    all_templates = get_all_templates()
+
     print("Available templates:\n")
 
     categories = {
         "Docker": ["Dockerfile", "docker-compose.yml"],
         "Pipeline": ["pipeline.py", "README.md"],
-        "Kubernetes": ["k8s-deployment.yaml", "k8s-service.yaml", "k8s-ingress.yaml"],
     }
 
     for category, files in categories.items():
         print(f"  {category}:")
-        for f in files:
-            if (TEMPLATES_DIR / f).exists():
+        available_in_category = [f for f in files if f in all_templates]
+        if available_in_category:
+            for f in available_in_category:
                 print(f"    - {f}")
         print()
 

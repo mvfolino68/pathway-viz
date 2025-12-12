@@ -52,7 +52,6 @@ def cmd_init(args):
     try:
         init_project(
             target_dir=args.directory,
-            include_k8s=args.k8s,
             force=args.force,
         )
     except FileExistsError as e:
@@ -103,7 +102,6 @@ def main():
     # Init command
     init_parser = subparsers.add_parser("init", help="Initialize a new project")
     init_parser.add_argument("directory", help="Directory to create the project in")
-    init_parser.add_argument("--k8s", action="store_true", help="Include Kubernetes manifests")
     init_parser.add_argument("--force", "-f", action="store_true", help="Overwrite existing files")
     init_parser.set_defaults(func=cmd_init)
 

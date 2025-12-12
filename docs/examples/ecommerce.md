@@ -30,13 +30,17 @@ Optional but recommended:
 
 ## Install
 
-If you installed from PyPI:
-
 ```bash
 pip install pathway-viz[demo]
 ```
 
-If you’re running from this repo, build the Rust extension and install optional deps:
+This includes everything needed for the demo:
+
+- Pathway for stream processing
+- Kafka/Redpanda client
+- DuckDB for persistence
+
+If you're running from this repo:
 
 ```bash
 pip install maturin

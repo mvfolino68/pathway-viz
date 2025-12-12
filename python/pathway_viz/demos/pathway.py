@@ -59,11 +59,30 @@ def check_docker_compose() -> bool:
 def is_kafka_running() -> bool:
     """Check if Kafka/Redpanda container is running."""
     try:
+        # Find docker-compose.yml using same logic as start_kafka
+        compose_file = None
+        compose_dir = None
+
+        if (Path.cwd() / "docker-compose.yml").exists():
+            compose_file = Path.cwd() / "docker-compose.yml"
+            compose_dir = Path.cwd()
+        else:
+            from pathway_viz.docker import get_compose_file
+
+            try:
+                compose_file = get_compose_file()
+                compose_dir = compose_file.parent
+            except FileNotFoundError:
+                return False
+
+        if not compose_file:
+            return False
+
         result = subprocess.run(
-            ["docker", "compose", "ps", "--format", "json"],
+            ["docker", "compose", "-f", str(compose_file), "ps", "--format", "json"],
             capture_output=True,
             text=True,
-            cwd=get_project_root(),
+            cwd=compose_dir,
         )
         if result.returncode != 0:
             return False
@@ -87,28 +106,52 @@ def is_kafka_running() -> bool:
 
 def get_project_root() -> Path:
     """Get the project root directory (where docker-compose.yml is)."""
-    # Walk up from this file to find docker-compose.yml
+    # First try to find docker-compose.yml in the package directory (for PyPI installs)
+    package_dir = Path(__file__).resolve().parent
+    compose_file = package_dir / "templates" / "docker-compose.yml"
+    if compose_file.exists():
+        return package_dir
+
+    # Walk up from this file to find docker-compose.yml (for repo installs)
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / "docker-compose.yml").exists():
             return parent
+
     # Fallback to cwd
     return Path.cwd()
 
 
 def start_kafka() -> bool:
     """Start Kafka/Redpanda via docker compose."""
-    project_root = get_project_root()
-    compose_file = project_root / "docker-compose.yml"
+    # Find docker-compose.yml - check multiple locations
+    # Priority: cwd > package docker dir
 
-    if not compose_file.exists():
+    compose_file = None
+    compose_dir = None
+
+    # Check cwd first (user's project)
+    if (Path.cwd() / "docker-compose.yml").exists():
+        compose_file = Path.cwd() / "docker-compose.yml"
+        compose_dir = Path.cwd()
+    else:
+        # Use package docker directory
+        from pathway_viz.docker import get_compose_file
+
+        try:
+            compose_file = get_compose_file()
+            compose_dir = compose_file.parent
+        except FileNotFoundError:
+            pass
+
+    if compose_file is None or not compose_file.exists():
         print("  Error: docker-compose.yml not found")
         return False
 
     print("  Starting Kafka (Redpanda)...")
     result = subprocess.run(
-        ["docker", "compose", "up", "-d"],
-        cwd=project_root,
+        ["docker", "compose", "-f", str(compose_file), "up", "-d"],
+        cwd=compose_dir,
         capture_output=True,
         text=True,
     )
@@ -132,12 +175,27 @@ def start_kafka() -> bool:
 
 def stop_kafka():
     """Stop Kafka/Redpanda containers."""
-    project_root = get_project_root()
-    subprocess.run(
-        ["docker", "compose", "down"],
-        cwd=project_root,
-        capture_output=True,
-    )
+    compose_file = None
+    compose_dir = None
+
+    if (Path.cwd() / "docker-compose.yml").exists():
+        compose_file = Path.cwd() / "docker-compose.yml"
+        compose_dir = Path.cwd()
+    else:
+        from pathway_viz.docker import get_compose_file
+
+        try:
+            compose_file = get_compose_file()
+            compose_dir = compose_file.parent
+        except FileNotFoundError:
+            pass
+
+    if compose_file and compose_dir:
+        subprocess.run(
+            ["docker", "compose", "-f", str(compose_file), "down"],
+            cwd=compose_dir,
+            capture_output=True,
+        )
 
 
 # =============================================================================
