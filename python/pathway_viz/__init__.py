@@ -5,7 +5,7 @@ Real-time dashboards and embeddable widgets for Pathway streaming pipelines.
 
 Example (Dashboard):
     import pathway as pw
-    import pathway_viz as sv
+    import pathway_viz as pv
 
     # Your Pathway pipeline
     orders = pw.io.kafka.read(...)
@@ -18,16 +18,16 @@ Example (Dashboard):
     )
 
     # Visualize
-    sv.title("Order Analytics")
-    sv.table(by_region, title="By Region")
-    sv.stat(totals, "total", title="Total Revenue", unit="$")
-    sv.start()
+    pv.title("Order Analytics")
+    pv.table(by_region, title="By Region")
+    pv.stat(totals, "total", title="Total Revenue", unit="$")
+    pv.start()
     pw.run()
 
 Example (Embeddable):
     # Add embed=True for embeddable single-widget endpoints
-    sv.table(by_region, id="regions", embed=True)
-    sv.start()
+    pv.table(by_region, id="regions", embed=True)
+    pv.start()
     # Access at: /embed/regions
 """
 
@@ -43,7 +43,12 @@ from ._pathway_viz import send_data as _send_data
 from ._server import start, stop
 from ._widgets import chart, gauge, stat, table
 
-__version__ = "0.1.0"
+try:
+    from importlib.metadata import version as _get_version
+
+    __version__ = _get_version("pathway-viz")
+except Exception:
+    __version__ = "0.0.0"  # Fallback for development
 __all__ = [
     # Primary API (Pathway)
     "table",

@@ -10,11 +10,11 @@ PathwayViz should focus on **production dashboards** and **embeddable widgets**.
 ### 1. Standalone Dashboard Mode
 
 ```python
-import pathway_viz as sv
+import pathway_viz as pv
 
-sv.title("Analytics")
-sv.table(my_table)
-sv.start()
+pv.title("Analytics")
+pv.table(my_table)
+pv.start()
 pw.run()
 ```
 
@@ -23,11 +23,11 @@ Opens full dashboard at localhost:3000
 ### 2. Embed Mode (iframes)
 
 ```python
-import pathway_viz as sv
+import pathway_viz as pv
 
-sv.configure(embed=True)
-sv.stat("revenue", title="Revenue")
-sv.start()
+pv.configure(embed=True)
+pv.stat("revenue", title="Revenue")
+pv.start()
 ```
 
 ```html
@@ -59,8 +59,8 @@ sv.start()
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Pathway Pipeline                                                   │
 │                                                                     │
-│  sv.table(orders_table, id="orders")                                │
-│  sv.stat(totals, "revenue", id="revenue")                           │
+│  pv.table(orders_table, id="orders")                                │
+│  pv.stat(totals, "revenue", id="revenue")                           │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -73,7 +73,7 @@ For framework examples (React / Next.js / Svelte), see `examples/`.
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 
 # Read from Kafka
 orders = pw.io.kafka.read(...)
@@ -103,14 +103,14 @@ per_minute = orders.windowby(
 )
 
 # === PathwayViz subscribes to table changes
-sv.configure(
+pv.configure(
     title="E-Commerce Analytics",
     theme="dark",
     embed=True,  # Enable embed endpoints
 )
 
 # Tables - keyed by Pathway pointer, updates in place
-sv.table(by_region,
+pv.table(by_region,
     id="by_region",
     title="Revenue by Region",
     columns=["region", "revenue", "count", "avg_order"],
@@ -119,20 +119,20 @@ sv.table(by_region,
 )
 
 # Stats - single values with delta
-sv.stat(totals, "total_revenue",
+pv.stat(totals, "total_revenue",
     id="revenue",
     title="Total Revenue",
     unit="$",
     format=",.2f",
 )
 
-sv.stat(totals, "total_orders",
+pv.stat(totals, "total_orders",
     id="orders",
     title="Total Orders",
 )
 
 # Time series from windowed aggregations
-sv.chart(per_minute,
+pv.chart(per_minute,
     id="rps",
     title="Orders/min",
     x="window_end",
@@ -140,7 +140,7 @@ sv.chart(per_minute,
     chart_type="line",
 )
 
-sv.chart(per_minute,
+pv.chart(per_minute,
     id="revenue_chart",
     title="Revenue/min",
     x="window_end",
@@ -149,7 +149,7 @@ sv.chart(per_minute,
 )
 
 # Gauges for bounded metrics
-sv.gauge(some_table, "cpu_usage",
+pv.gauge(some_table, "cpu_usage",
     id="cpu",
     title="CPU",
     min=0, max=100,
@@ -157,7 +157,7 @@ sv.gauge(some_table, "cpu_usage",
 )
 
 # Start server
-sv.start(port=3000)
+pv.start(port=3000)
 
 # Run Pathway
 pw.run()

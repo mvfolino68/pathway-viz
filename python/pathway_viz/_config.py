@@ -41,7 +41,7 @@ def configure(
         embed: Enable embeddable widget endpoints
 
     Example:
-        sv.configure(title="Analytics", embed=True)
+        pv.configure(title="Analytics", embed=True)
     """
     state = get_state()
 

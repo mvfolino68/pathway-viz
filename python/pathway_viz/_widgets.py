@@ -127,10 +127,10 @@ def table(
 
     Example (Pathway):
         stats = orders.groupby(pw.this.region).reduce(...)
-        sv.table(stats, title="By Region", columns=["region", "revenue"])
+        pv.table(stats, title="By Region", columns=["region", "revenue"])
 
     Example (Manual):
-        events = sv.table("events", title="Events", columns=["time", "msg"])
+        events = pv.table("events", title="Events", columns=["time", "msg"])
         events.send({"time": "12:00", "msg": "Started"})
     """
     if _is_pathway_table(source):
@@ -343,10 +343,10 @@ def stat(
 
     Example (Pathway):
         totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-        sv.stat(totals, "revenue", title="Revenue", unit="$")
+        pv.stat(totals, "revenue", title="Revenue", unit="$")
 
     Example (Manual with alerts):
-        opm = sv.stat("orders_per_min", title="Orders/Min", alert_below=2)
+        opm = pv.stat("orders_per_min", title="Orders/Min", alert_below=2)
         opm.send(1.5)  # Will trigger "low" alert
     """
     if _is_pathway_table(source):
@@ -535,10 +535,10 @@ def chart(
             window=pw.temporal.tumbling(duration=timedelta(minutes=1))
         ).reduce(count=pw.reducers.count())
 
-        sv.chart(per_minute, "count", x_column="window_end", title="Orders/min")
+        pv.chart(per_minute, "count", x_column="window_end", title="Orders/min")
 
     Example (Manual):
-        cpu = sv.chart("cpu", title="CPU Usage", unit="%")
+        cpu = pv.chart("cpu", title="CPU Usage", unit="%")
         cpu.send(72.5)
     """
     if _is_pathway_table(source):
@@ -720,11 +720,11 @@ def gauge(
 
     Example (Pathway):
         system_stats = ...reduce(cpu=pw.reducers.avg(pw.this.cpu_pct))
-        sv.gauge(system_stats, "cpu", title="CPU", max_val=100, unit="%",
+        pv.gauge(system_stats, "cpu", title="CPU", max_val=100, unit="%",
                  thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
 
     Example (Manual):
-        cpu = sv.gauge("cpu", title="CPU", max_val=100, unit="%")
+        cpu = pv.gauge("cpu", title="CPU", max_val=100, unit="%")
         cpu.send(72)
     """
     if _is_pathway_table(source):

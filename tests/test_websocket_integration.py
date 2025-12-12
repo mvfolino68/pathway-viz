@@ -6,7 +6,7 @@ import socket
 import time
 from dataclasses import dataclass
 
-import pathway_viz as sv
+import pathway_viz as pv
 
 
 def _free_port() -> int:
@@ -142,11 +142,11 @@ def _recv_json_until(client: _WSClient, predicate, timeout_s: float = 5.0) -> di
 def test_websocket_receives_config_history_and_live_data():
     port = _free_port()
 
-    sv.title("WebSocket Test")
-    sv.configure(embed=True)
-    stat = sv.stat("ws_test_stat", title="WS Stat")
+    pv.title("WebSocket Test")
+    pv.configure(embed=True)
+    stat = pv.stat("ws_test_stat", title="WS Stat")
 
-    sv.start(port)
+    pv.start(port)
 
     client: _WSClient | None = None
     try:
@@ -176,6 +176,6 @@ def test_websocket_receives_config_history_and_live_data():
         if client is not None:
             client.sock.close()
         try:
-            sv.stop()
+            pv.stop()
         except Exception:
             pass

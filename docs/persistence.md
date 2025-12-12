@@ -6,7 +6,7 @@ By default, PathwayViz is ephemeral—restart the app and all data is lost. This
 
 ```python
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-sv.stat(totals, "revenue", title="Revenue")
+pv.stat(totals, "revenue", title="Revenue")
 ```
 
 This accumulates revenue **since app start**. If you restart:
@@ -79,8 +79,8 @@ totals = orders.reduce(
 )
 
 # PathwayViz
-sv.stat(totals, "revenue", title="Revenue")
-sv.start()
+pv.stat(totals, "revenue", title="Revenue")
+pv.start()
 
 # Run with persistence
 pw.run(
@@ -152,7 +152,7 @@ db.execute("""
 Wrap PathwayViz widgets to also persist to DuckDB:
 
 ```python
-import pathway_viz as sv
+import pathway_viz as pv
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -195,12 +195,12 @@ class PersistentChart:
 
 def persistent_stat(widget_id: str, db: duckdb.DuckDBPyConnection, **kwargs):
     """Create a stat widget with DuckDB persistence."""
-    widget = sv.stat(widget_id, **kwargs)
+    widget = pv.stat(widget_id, **kwargs)
     return PersistentStat(widget=widget, widget_id=widget_id, db=db)
 
 def persistent_chart(widget_id: str, db: duckdb.DuckDBPyConnection, **kwargs):
     """Create a chart widget with DuckDB persistence."""
-    widget = sv.chart(widget_id, **kwargs)
+    widget = pv.chart(widget_id, **kwargs)
     return PersistentChart(widget=widget, widget_id=widget_id, db=db)
 ```
 
@@ -293,7 +293,7 @@ The most robust approach combines:
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 import duckdb
 
 # DuckDB for history
@@ -318,8 +318,8 @@ def persist_totals(key, row, time, is_addition):
 pw.io.subscribe(totals, on_change=persist_totals)
 
 # PathwayViz (also subscribes)
-sv.stat(totals, "revenue", title="Revenue")
-sv.start()
+pv.stat(totals, "revenue", title="Revenue")
+pv.start()
 
 # Run with Pathway persistence
 pw.run(
@@ -376,8 +376,8 @@ windowed = orders.windowby(
 )
 
 # Display windowed metrics
-sv.stat("window_revenue", title="5-Min Revenue", unit="$")
-sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)  # Alert if low!
+pv.stat("window_revenue", title="5-Min Revenue", unit="$")
+pv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)  # Alert if low!
 ```
 
 ---
@@ -424,10 +424,10 @@ Widgets can change color based on value thresholds:
 
 ```python
 # Alert when orders/min drops below 2
-opm = sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)
+opm = pv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)
 
 # Alert when revenue exceeds budget
-revenue = sv.stat("revenue", title="Revenue", alert_above=10000)
+revenue = pv.stat("revenue", title="Revenue", alert_above=10000)
 
 # When value crosses threshold, widget sends alert status
 opm.send(1.5)  # Sends {"alert": "low", "value": 1.5, ...}

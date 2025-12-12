@@ -39,14 +39,14 @@ This starts:
 Edit `pipeline.py` to:
 
 1. **Change Kafka topics** — Update the `topic="events"` parameter
-2. **Add widgets** — Use `sv.stat()`, `sv.chart()`, `sv.gauge()`, `sv.table()`
+2. **Add widgets** — Use `pv.stat()`, `pv.chart()`, `pv.gauge()`, `pv.table()`
 3. **Add aggregations** — Use Pathway's `groupby()`, `reduce()`, `windowby()`
 
 Example with multiple widgets:
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 
 orders = pw.io.kafka.read(...)
 
@@ -62,11 +62,11 @@ totals = orders.reduce(
 )
 
 # Dashboard
-sv.title("Order Analytics")
-sv.stat(totals, "total_revenue", title="Revenue", unit="$")
-sv.stat(totals, "order_count", title="Orders")
-sv.table(by_region, title="By Region")
-sv.start()
+pv.title("Order Analytics")
+pv.stat(totals, "total_revenue", title="Revenue", unit="$")
+pv.stat(totals, "order_count", title="Orders")
+pv.table(by_region, title="By Region")
+pv.start()
 pw.run()
 ```
 
@@ -75,9 +75,9 @@ pw.run()
 For embedding in other apps:
 
 ```python
-sv.configure(embed=True)
-sv.stat(totals, "revenue", id="revenue-widget")
-sv.start()
+pv.configure(embed=True)
+pv.stat(totals, "revenue", id="revenue-widget")
+pv.start()
 ```
 
 Then embed:

@@ -48,10 +48,10 @@ Copy `svelte/PathwayVizWidget.svelte` into your project:
 1. Start PathwayViz with embedding enabled:
 
    ```python
-   import pathway_viz as sv
-   sv.configure(embed=True)
-   sv.stat("revenue", title="Revenue", unit="$")
-   sv.start()
+   import pathway_viz as pv
+   pv.configure(embed=True)
+   pv.stat("revenue", title="Revenue", unit="$")
+   pv.start()
    ```
 
 2. Use the widget component in your app pointing to `http://localhost:3000/embed/revenue`

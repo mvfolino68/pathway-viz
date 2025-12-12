@@ -11,19 +11,19 @@ Real-time dashboards for streaming data pipelines. Zero config, embeddable, fast
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
-sv.stat(totals, "revenue", title="Revenue", unit="$")
-sv.start()
+pv.stat(totals, "revenue", title="Revenue", unit="$")
+pv.start()
 pw.run()
 ```
 
 Open `http://localhost:3000` → live dashboard.
 
-Note: the Python module name is `pathway_viz` (e.g. `import pathway_viz as sv`).
+Note: the Python module name is `pathway_viz` (e.g. `import pathway_viz as pv`).
 
 ## Install
 
@@ -55,17 +55,17 @@ pathway-viz show docker-compose         # Print template to stdout
 
 | Widget  | Purpose        | Example                                           |
 | ------- | -------------- | ------------------------------------------------- |
-| `stat`  | Big numbers    | `sv.stat("revenue", title="Revenue", unit="$")`   |
-| `chart` | Time series    | `sv.chart("latency", title="Latency", unit="ms")` |
-| `gauge` | Bounded values | `sv.gauge("cpu", title="CPU", max_val=100)`       |
-| `table` | Live rows      | `sv.table("events", columns=["time", "msg"])`     |
+| `stat`  | Big numbers    | `pv.stat("revenue", title="Revenue", unit="$")`   |
+| `chart` | Time series    | `pv.chart("latency", title="Latency", unit="ms")` |
+| `gauge` | Bounded values | `pv.gauge("cpu", title="CPU", max_val=100)`       |
+| `table` | Live rows      | `pv.table("events", columns=["time", "msg"])`     |
 
 ## Embedding
 
 ```python
-sv.configure(embed=True)
-sv.stat("revenue", title="Revenue")
-sv.start()
+pv.configure(embed=True)
+pv.stat("revenue", title="Revenue")
+pv.start()
 ```
 
 ```html

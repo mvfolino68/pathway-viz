@@ -48,8 +48,8 @@ def start(port: int | None = None) -> None:
     For manual widgets, use widget.send() to push data.
 
     Example:
-        sv.table(my_pathway_table, title="Data")
-        sv.start()
+        pv.table(my_pathway_table, title="Data")
+        pv.start()
         pw.run()  # Pathway drives the data flow
     """
     state = get_state()

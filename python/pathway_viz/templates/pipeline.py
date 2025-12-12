@@ -22,17 +22,17 @@ def run_simple_demo(port: int = 3000):
     import random
     import time
 
-    import pathway_viz as sv
+    import pathway_viz as pv
 
-    sv.title("My Dashboard")
+    pv.title("My Dashboard")
 
     # Create widgets
-    counter = sv.stat("requests", title="Total Requests")
-    latency = sv.chart("latency", title="Latency", unit="ms")
-    cpu = sv.gauge("cpu", title="CPU", unit="%", max_val=100)
-    events = sv.table("events", title="Recent Events", columns=["time", "message"])
+    counter = pv.stat("requests", title="Total Requests")
+    latency = pv.chart("latency", title="Latency", unit="ms")
+    cpu = pv.gauge("cpu", title="CPU", unit="%", max_val=100)
+    events = pv.table("events", title="Recent Events", columns=["time", "message"])
 
-    sv.start(port)
+    pv.start(port)
     print(f"Dashboard running at http://localhost:{port}")
 
     total = 0
@@ -66,7 +66,7 @@ def run_pathway_pipeline(port: int = 3000):
     """Run a Pathway pipeline with Kafka - production mode."""
     import pathway as pw
 
-    import pathway_viz as sv
+    import pathway_viz as pv
 
     kafka_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
@@ -84,9 +84,9 @@ def run_pathway_pipeline(port: int = 3000):
     )
 
     # Dashboard
-    sv.title("Event Analytics")
-    sv.stat(totals, "count", title="Total Events")
-    sv.start(port)
+    pv.title("Event Analytics")
+    pv.stat(totals, "count", title="Total Events")
+    pv.start(port)
 
     print(f"Dashboard at http://localhost:{port}")
     print(f"Connected to Kafka at {kafka_servers}")

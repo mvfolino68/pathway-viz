@@ -32,13 +32,13 @@ PathwayViz is a **visualization layer** for [Pathway](https://pathway.com/) stre
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
-sv.stat(totals, "revenue", title="Today's Revenue", unit="$")
-sv.start()
+pv.stat(totals, "revenue", title="Today's Revenue", unit="$")
+pv.start()
 pw.run()
 ```
 
@@ -53,9 +53,9 @@ pw.run()
 ## Embedding
 
 ```python
-sv.configure(embed=True)
-sv.stat("revenue", title="Revenue")
-sv.start()
+pv.configure(embed=True)
+pv.stat("revenue", title="Revenue")
+pv.start()
 ```
 
 ```html

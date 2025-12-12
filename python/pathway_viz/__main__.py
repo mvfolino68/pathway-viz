@@ -20,9 +20,9 @@ import sys
 def cmd_demo(args):
     """Run the demo."""
     if args.mode == "simple":
-        import pathway_viz as sv
+        import pathway_viz as pv
 
-        sv.run_demo(port=args.port)
+        pv.run_demo(port=args.port)
         return
 
     from pathway_viz.demos import run_demo

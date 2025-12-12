@@ -9,10 +9,10 @@ Display a single prominent value with optional delta indicator.
 ```python
 # Pathway mode
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-sv.stat(totals, "revenue", title="Total Revenue", unit="$")
+pv.stat(totals, "revenue", title="Total Revenue", unit="$")
 
 # Manual mode
-revenue = sv.stat("revenue", title="Total Revenue", unit="$")
+revenue = pv.stat("revenue", title="Total Revenue", unit="$")
 revenue.send(125000)
 ```
 
@@ -52,10 +52,10 @@ orders_per_min = orders.windowby(
     window_end=pw.this._pw_window_end,
     count=pw.reducers.count(),
 )
-sv.chart(orders_per_min, "count", x_column="window_end", title="Orders/min")
+pv.chart(orders_per_min, "count", x_column="window_end", title="Orders/min")
 
 # Manual mode
-latency = sv.chart("latency", title="Latency", unit="ms")
+latency = pv.chart("latency", title="Latency", unit="ms")
 latency.send(45.2)  # Timestamp auto-generated
 latency.send(52.1, timestamp=1702300000)  # Custom timestamp
 ```
@@ -92,7 +92,7 @@ Circular gauge for percentage-like bounded values.
 ```python
 # Pathway mode
 system = ...reduce(cpu=pw.reducers.avg(pw.this.cpu_pct))
-sv.gauge(
+pv.gauge(
     system, "cpu",
     title="CPU",
     max_val=100,
@@ -101,7 +101,7 @@ sv.gauge(
 )
 
 # Manual mode
-cpu = sv.gauge("cpu", title="CPU", max_val=100, unit="%")
+cpu = pv.gauge("cpu", title="CPU", max_val=100, unit="%")
 cpu.send(72)
 ```
 
@@ -152,7 +152,7 @@ by_region = orders.groupby(pw.this.region).reduce(
     revenue=pw.reducers.sum(pw.this.amount),
     orders=pw.reducers.count(),
 )
-sv.table(
+pv.table(
     by_region,
     title="Revenue by Region",
     columns=["region", "revenue", "orders"],
@@ -162,7 +162,7 @@ sv.table(
 )
 
 # Manual mode (append rows)
-events = sv.table("events", title="Events", columns=["time", "level", "msg"])
+events = pv.table("events", title="Events", columns=["time", "level", "msg"])
 events.send({"time": "12:00:01", "level": "INFO", "msg": "Started"})
 events.send({"time": "12:00:02", "level": "ERROR", "msg": "Failed"})
 ```
@@ -202,10 +202,10 @@ events.send({"time": "12:00:02", "level": "ERROR", "msg": "Failed"})
 Enable embedding to use widgets in external pages:
 
 ```python
-sv.configure(embed=True)
-sv.stat("revenue", title="Revenue", embed=True)
-sv.chart("latency", title="Latency", embed=True)
-sv.start()
+pv.configure(embed=True)
+pv.stat("revenue", title="Revenue", embed=True)
+pv.chart("latency", title="Latency", embed=True)
+pv.start()
 ```
 
 Access individual widgets at:
@@ -290,11 +290,11 @@ Widgets appear in the order you create them. Currently, PathwayViz uses a respon
 
 ```python
 # These appear in order: left to right, top to bottom
-sv.stat("revenue", title="Revenue")
-sv.stat("orders", title="Orders")
-sv.stat("avg", title="Average")
-sv.chart("trend", title="Trend")
-sv.table("breakdown", title="Breakdown")
+pv.stat("revenue", title="Revenue")
+pv.stat("orders", title="Orders")
+pv.stat("avg", title="Average")
+pv.chart("trend", title="Trend")
+pv.table("breakdown", title="Breakdown")
 ```
 
 ## Colors
@@ -302,8 +302,8 @@ sv.table("breakdown", title="Breakdown")
 PathwayViz auto-assigns colors from a palette, or specify your own:
 
 ```python
-sv.stat("revenue", color="#00ff88")
-sv.chart("errors", color="#ff6b6b")
+pv.stat("revenue", color="#00ff88")
+pv.chart("errors", color="#ff6b6b")
 ```
 
 Default palette:

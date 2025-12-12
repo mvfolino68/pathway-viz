@@ -26,7 +26,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pathway_viz as sv
+import pathway_viz as pv
 
 # Optional DuckDB for persistence
 try:
@@ -766,38 +766,38 @@ def run_pathway_demo(port: int = 3000):
     print("  Press Ctrl+C to stop")
     print()
 
-    sv.title("E-Commerce Analytics")
-    sv.configure(embed=True)
+    pv.title("E-Commerce Analytics")
+    pv.configure(embed=True)
 
     # Create widgets with real business metric names
     widgets = {
         # Today's metrics (what businesses actually care about)
-        "revenue": sv.stat("revenue", title="Today's Revenue", unit="$"),
-        "orders": sv.stat("orders", title="Today's Orders"),
-        "avg_order": sv.stat("avg_order", title="Avg Order", unit="$"),
+        "revenue": pv.stat("revenue", title="Today's Revenue", unit="$"),
+        "orders": pv.stat("orders", title="Today's Orders"),
+        "avg_order": pv.stat("avg_order", title="Avg Order", unit="$"),
         # NEW: Windowed metrics (demonstrates stream processing)
-        "window_revenue": sv.stat("window_revenue", title="5-Min Window", unit="$"),
-        "orders_per_min": sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0),
+        "window_revenue": pv.stat("window_revenue", title="5-Min Window", unit="$"),
+        "orders_per_min": pv.stat("orders_per_min", title="Orders/Min", alert_below=2.0),
         # NEW: Comparison metric (vs previous period)
-        "vs_last_hour": sv.stat("vs_last_hour", title="vs Last Hour", unit="%", alert_below=-20.0),
+        "vs_last_hour": pv.stat("vs_last_hour", title="vs Last Hour", unit="%", alert_below=-20.0),
         # Charts
-        "revenue_chart": sv.chart(
+        "revenue_chart": pv.chart(
             "revenue_chart", title="Revenue (5-min windows)", unit="$", color="#00ff88"
         ),
-        "orders_chart": sv.chart("orders_chart", title="Orders/sec", color="#00d4ff"),
+        "orders_chart": pv.chart("orders_chart", title="Orders/sec", color="#00d4ff"),
         # Region stats (one per region)
-        "us_east": sv.stat("us_east", title="US-East", unit="$"),
-        "us_west": sv.stat("us_west", title="US-West", unit="$"),
-        "europe": sv.stat("europe", title="Europe", unit="$"),
-        "asia": sv.stat("asia", title="Asia", unit="$"),
+        "us_east": pv.stat("us_east", title="US-East", unit="$"),
+        "us_west": pv.stat("us_west", title="US-West", unit="$"),
+        "europe": pv.stat("europe", title="Europe", unit="$"),
+        "asia": pv.stat("asia", title="Asia", unit="$"),
         # Category stats
-        "electronics": sv.stat("electronics", title="Electronics", unit="$"),
-        "apparel": sv.stat("apparel", title="Apparel", unit="$"),
-        "books": sv.stat("books", title="Books", unit="$"),
-        "grocery": sv.stat("grocery", title="Grocery", unit="$"),
+        "electronics": pv.stat("electronics", title="Electronics", unit="$"),
+        "apparel": pv.stat("apparel", title="Apparel", unit="$"),
+        "books": pv.stat("books", title="Books", unit="$"),
+        "grocery": pv.stat("grocery", title="Grocery", unit="$"),
     }
 
-    sv.start(port)
+    pv.start(port)
 
     # Build historical baseline from DuckDB
     # This is the KEY fix: we track historical totals separately and ADD Pathway's
@@ -875,7 +875,7 @@ def run_pathway_demo(port: int = 3000):
         print("\n  Stopping...")
         stop_event.set()
 
-        sv.stop()
+        pv.stop()
 
         # Only stop Kafka if we started it
         if not kafka_was_running:

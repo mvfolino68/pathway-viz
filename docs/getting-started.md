@@ -61,7 +61,7 @@ The e-commerce demo will:
 
 ```python
 import pathway as pw
-import pathway_viz as sv
+import pathway_viz as pv
 
 class OrderSchema(pw.Schema):
     order_id: str
@@ -86,20 +86,20 @@ by_region = orders.groupby(pw.this.region).reduce(
 )
 
 # Visualize
-sv.stat(totals, "revenue", title="Revenue", unit="$")
-sv.stat(totals, "count", title="Orders")
-sv.table(by_region, title="By Region", columns=["region", "revenue"])
+pv.stat(totals, "revenue", title="Revenue", unit="$")
+pv.stat(totals, "count", title="Orders")
+pv.table(by_region, title="By Region", columns=["region", "revenue"])
 
-sv.start()
+pv.start()
 pw.run()
 ```
 
 ## Embedding Widgets
 
 ```python
-sv.configure(embed=True)
-sv.stat("revenue", title="Revenue")
-sv.start()
+pv.configure(embed=True)
+pv.stat("revenue", title="Revenue")
+pv.start()
 ```
 
 ```html
