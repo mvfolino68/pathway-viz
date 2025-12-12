@@ -64,7 +64,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY python ./python
 COPY frontend ./frontend
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 
 # Build the wheel
 RUN maturin build --release
