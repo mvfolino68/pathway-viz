@@ -43,7 +43,7 @@
 ARG PYTHON_VERSION=3.12
 
 # Stage 1: Build the Rust extension
-FROM rust:1.75-slim as builder
+FROM rust:1.83-slim AS builder
 
 WORKDIR /app
 
