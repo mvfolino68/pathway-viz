@@ -49,11 +49,14 @@ all = [
     "duckdb>=1.0",
 ]
 
+[project.scripts]
+stream-viz = "stream_viz.__main__:main"
+
 [project.urls]
-Homepage = "https://github.com/yourusername/stream-viz"
-Repository = "https://github.com/yourusername/stream-viz"
-Documentation = "https://github.com/yourusername/stream-viz#readme"
-Issues = "https://github.com/yourusername/stream-viz/issues"
+Homepage = "https://github.com/mvfolino68/stream-viz"
+Repository = "https://github.com/mvfolino68/stream-viz"
+Documentation = "https://github.com/mvfolino68/stream-viz#readme"
+Issues = "https://github.com/mvfolino68/stream-viz/issues"
 
 [tool.maturin]
 python-source = "python"

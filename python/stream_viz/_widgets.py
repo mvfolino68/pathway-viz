@@ -277,6 +277,8 @@ class _ManualStat:
     id: str
     _last_value: float | None = None
     _show_delta: bool = True
+    _alert_below: float | None = None
+    _alert_above: float | None = None
 
     def send(self, value: float) -> None:
         """Update the stat value."""
@@ -285,6 +287,13 @@ class _ManualStat:
             delta = value - self._last_value
         self._last_value = value
 
+        # Determine alert status based on thresholds
+        alert = None
+        if self._alert_below is not None and value < self._alert_below:
+            alert = "low"
+        elif self._alert_above is not None and value > self._alert_above:
+            alert = "high"
+
         _send_data(
             json.dumps(
                 {
@@ -292,6 +301,7 @@ class _ManualStat:
                     "widget": self.id,
                     "value": value,
                     "delta": delta,
+                    "alert": alert,
                     "timestamp": int(time.time() * 1000),
                 }
             )
@@ -308,6 +318,8 @@ def stat(
     color: str | None = None,
     format: str | None = None,
     delta: bool = True,
+    alert_below: float | None = None,
+    alert_above: float | None = None,
     embed: bool = False,
 ) -> _ManualStat | None:
     """
@@ -325,15 +337,17 @@ def stat(
         color: Text color
         format: Python format string (e.g., ",.2f")
         delta: Show change from previous value
+        alert_below: Trigger alert when value drops below this threshold
+        alert_above: Trigger alert when value exceeds this threshold
         embed: Enable embeddable endpoint
 
     Example (Pathway):
         totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
         sv.stat(totals, "revenue", title="Revenue", unit="$")
 
-    Example (Manual):
-        visitors = sv.stat("visitors", title="Active Visitors")
-        visitors.send(1234)
+    Example (Manual with alerts):
+        opm = sv.stat("orders_per_min", title="Orders/Min", alert_below=2)
+        opm.send(1.5)  # Will trigger "low" alert
     """
     if _is_pathway_table(source):
         if column is None:
@@ -359,6 +373,8 @@ def stat(
         unit=unit,
         color=color,
         delta=delta,
+        alert_below=alert_below,
+        alert_above=alert_above,
         embed=embed,
     )
 
@@ -428,6 +444,8 @@ def _stat_manual(
     unit: str,
     color: str | None,
     delta: bool,
+    alert_below: float | None,
+    alert_above: float | None,
     embed: bool,
 ) -> _ManualStat:
     """Create a manual stat widget."""
@@ -438,11 +456,18 @@ def _stat_manual(
             "title": title or widget_id,
             "unit": unit,
             "color": color or next_color(),
+            "alert_below": alert_below,
+            "alert_above": alert_above,
             "embed": embed,
         },
     )
 
-    return _ManualStat(id=widget_id, _show_delta=delta)
+    return _ManualStat(
+        id=widget_id,
+        _show_delta=delta,
+        _alert_below=alert_below,
+        _alert_above=alert_above,
+    )
 
 
 # =============================================================================

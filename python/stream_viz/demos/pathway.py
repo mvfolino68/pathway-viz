@@ -4,9 +4,11 @@ StreamViz Demo - Real E-Commerce Analytics
 
 Production-like demo using:
 - Kafka/Redpanda for streaming
-- Pathway for stream processing
+- Pathway for stream processing with windowed aggregations
 - DuckDB for persistence (survives restarts)
-- Real business metrics (today's orders, hourly breakdown)
+- Real business metrics with historical context
+- Comparison metrics (vs previous period)
+- Alert thresholds
 
 Usage:
     python -m stream_viz
@@ -166,8 +168,21 @@ def init_database():
         )
     """)
 
-    # Create index for time queries
+    # Snapshots table for time-travel queries
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS snapshots (
+            snapshot_id VARCHAR PRIMARY KEY,
+            snapshot_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            metric_name VARCHAR,
+            metric_value DOUBLE,
+            window_start TIMESTAMP,
+            window_end TIMESTAMP
+        )
+    """)
+
+    # Create indexes for time queries
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_time ON orders(created_at)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_snapshots_time ON snapshots(snapshot_time)")
 
     return db
 
@@ -176,6 +191,14 @@ def get_today_start() -> datetime:
     """Get midnight of today."""
     now = datetime.now()
     return now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def get_period_start(period_minutes: int) -> datetime:
+    """Get start of current period (e.g., current 5-minute window)."""
+    now = datetime.now()
+    # Align to period boundary
+    minutes = (now.hour * 60 + now.minute) // period_minutes * period_minutes
+    return now.replace(hour=minutes // 60, minute=minutes % 60, second=0, microsecond=0)
 
 
 def get_todays_totals() -> dict:
@@ -191,6 +214,106 @@ def get_todays_totals() -> dict:
         [today],
     ).fetchone()
     return {"orders": result[0], "revenue": result[1]}
+
+
+def get_previous_period_totals(period_minutes: int = 60) -> dict:
+    """Get totals from the previous period for comparison."""
+    if not db:
+        return {"orders": 0, "revenue": 0}
+    period_end = get_period_start(period_minutes)
+    period_start = period_end - timedelta(minutes=period_minutes)
+    result = db.execute(
+        """
+        SELECT COUNT(*) as orders, COALESCE(SUM(total), 0) as revenue
+        FROM orders WHERE created_at >= ? AND created_at < ?
+    """,
+        [period_start, period_end],
+    ).fetchone()
+    return {"orders": result[0], "revenue": result[1]}
+
+
+def get_current_period_totals(period_minutes: int = 60) -> dict:
+    """Get totals from the current period."""
+    if not db:
+        return {"orders": 0, "revenue": 0}
+    period_start = get_period_start(period_minutes)
+    result = db.execute(
+        """
+        SELECT COUNT(*) as orders, COALESCE(SUM(total), 0) as revenue
+        FROM orders WHERE created_at >= ?
+    """,
+        [period_start],
+    ).fetchone()
+    return {"orders": result[0], "revenue": result[1]}
+
+
+def get_windowed_aggregates(window_minutes: int = 5, lookback_hours: int = 1) -> list:
+    """Get aggregates per window for the last N hours."""
+    if not db:
+        return []
+    cutoff = datetime.now() - timedelta(hours=lookback_hours)
+    return db.execute(
+        f"""
+        SELECT
+            DATE_TRUNC('minute', created_at) -
+            INTERVAL (EXTRACT(MINUTE FROM created_at)::INT % {window_minutes}) MINUTE as window_start,
+            COUNT(*) as orders,
+            SUM(total) as revenue
+        FROM orders
+        WHERE created_at >= ?
+        GROUP BY window_start
+        ORDER BY window_start
+    """,
+        [cutoff],
+    ).fetchall()
+
+
+def save_snapshot(
+    metric_name: str, value: float, window_start: datetime = None, window_end: datetime = None
+):
+    """Save a metric snapshot for time-travel queries."""
+    if not db:
+        return
+    snapshot_id = f"{metric_name}_{datetime.now().isoformat()}"
+    db.execute(
+        """
+        INSERT INTO snapshots (snapshot_id, metric_name, metric_value, window_start, window_end)
+        VALUES (?, ?, ?, ?, ?)
+    """,
+        [snapshot_id, metric_name, value, window_start, window_end],
+    )
+
+
+def get_snapshot_at_time(metric_name: str, target_time: datetime) -> float | None:
+    """Get the metric value closest to a specific time (time-travel query)."""
+    if not db:
+        return None
+    result = db.execute(
+        """
+        SELECT metric_value
+        FROM snapshots
+        WHERE metric_name = ? AND snapshot_time <= ?
+        ORDER BY snapshot_time DESC
+        LIMIT 1
+    """,
+        [metric_name, target_time],
+    ).fetchone()
+    return result[0] if result else None
+
+
+def get_orders_per_minute(lookback_minutes: int = 5) -> float:
+    """Get average orders per minute over lookback period."""
+    if not db:
+        return 0
+    cutoff = datetime.now() - timedelta(minutes=lookback_minutes)
+    result = db.execute(
+        """
+        SELECT COUNT(*) as orders
+        FROM orders WHERE created_at >= ?
+    """,
+        [cutoff],
+    ).fetchone()
+    return result[0] / lookback_minutes if result else 0
 
 
 def get_hourly_breakdown(hours: int = 24) -> list:
@@ -224,6 +347,23 @@ def get_region_breakdown() -> list:
         FROM orders
         WHERE created_at >= ?
         GROUP BY region
+        ORDER BY revenue DESC
+    """,
+        [today],
+    ).fetchall()
+
+
+def get_category_breakdown() -> list:
+    """Get today's revenue by category."""
+    if not db:
+        return []
+    today = get_today_start()
+    return db.execute(
+        """
+        SELECT category, COUNT(*) as orders, SUM(total) as revenue
+        FROM orders
+        WHERE created_at >= ?
+        GROUP BY category
         ORDER BY revenue DESC
     """,
         [today],
@@ -357,8 +497,13 @@ def run_producer(stop_event: threading.Event, orders_chart):
     producer.close()
 
 
-def run_pathway(stop_event: threading.Event, port: int, widgets: dict):
-    """Run the Pathway pipeline in a thread."""
+def run_pathway(stop_event: threading.Event, port: int, widgets: dict, historical_baseline: dict):
+    """
+    Run the Pathway pipeline in a thread.
+
+    The key insight: Pathway aggregations start from 0, but we need to ADD to
+    the historical baseline from DuckDB, not replace it.
+    """
     try:
         import pathway as pw
     except ImportError:
@@ -393,34 +538,60 @@ def run_pathway(stop_event: threading.Event, port: int, widgets: dict):
 
     # === AGGREGATIONS ===
 
-    # Global totals (single row, updates in place)
-    totals = orders.reduce(
-        total_revenue=pw.reducers.sum(pw.this.total),
-        order_count=pw.reducers.count(),
-        avg_order=pw.reducers.avg(pw.this.total),
+    # Global totals (single row, updates in place) - this is SESSION totals
+    session_totals = orders.reduce(
+        session_revenue=pw.reducers.sum(pw.this.total),
+        session_count=pw.reducers.count(),
+        session_avg=pw.reducers.avg(pw.this.total),
     )
 
-    # By region breakdown
+    # 5-minute tumbling window for windowed metrics
+    # Convert timestamp (ms) to datetime for windowing
+    orders_with_time = orders.with_columns(
+        event_time=pw.this.timestamp // 1000  # Convert ms to seconds
+    )
+
+    windowed_stats = orders_with_time.windowby(
+        pw.this.event_time,
+        window=pw.temporal.tumbling(duration=300),  # 5 minutes = 300 seconds
+    ).reduce(
+        window_end=pw.this._pw_window_end,
+        window_revenue=pw.reducers.sum(pw.this.total),
+        window_count=pw.reducers.count(),
+    )
+
+    # By region breakdown (session-only, we'll add to historical)
     by_region = orders.groupby(pw.this.region).reduce(
         region=pw.this.region,
-        revenue=pw.reducers.sum(pw.this.total),
-        orders=pw.reducers.count(),
+        session_revenue=pw.reducers.sum(pw.this.total),
+        session_orders=pw.reducers.count(),
     )
 
     # By category breakdown
     by_category = orders.groupby(pw.this.category).reduce(
         category=pw.this.category,
-        revenue=pw.reducers.sum(pw.this.total),
-        orders=pw.reducers.count(),
+        session_revenue=pw.reducers.sum(pw.this.total),
+        session_orders=pw.reducers.count(),
     )
 
     # === SUBSCRIBE TO PATHWAY TABLES AND SEND TO STREAMVIZ ===
+    # KEY: Add session values to historical baseline!
 
     # Get widget references
     revenue_widget = widgets["revenue"]
     orders_widget = widgets["orders"]
     avg_order_widget = widgets["avg_order"]
     revenue_chart = widgets["revenue_chart"]
+    window_revenue_widget = widgets.get("window_revenue")
+    orders_per_min_widget = widgets.get("orders_per_min")
+    vs_last_hour_widget = widgets.get("vs_last_hour")
+
+    # Historical baseline values (from DuckDB)
+    base_revenue = historical_baseline.get("revenue", 0)
+    base_orders = historical_baseline.get("orders", 0)
+    base_regions = historical_baseline.get("regions", {})
+    base_categories = historical_baseline.get("categories", {})
+    prev_hour = historical_baseline.get("prev_hour", {"revenue": 0, "orders": 0})
 
     # Region widgets
     region_widgets = {
@@ -438,44 +609,88 @@ def run_pathway(stop_event: threading.Event, port: int, widgets: dict):
         "Grocery": widgets["grocery"],
     }
 
-    # Subscribe to totals and send to stats
+    # Track session values for comparison calculations
+    session_state = {"revenue": 0, "orders": 0}
+
+    # Subscribe to session totals - ADD to historical baseline
     def on_totals(key, row, time, is_addition):
         if is_addition and row:
-            revenue_widget.send(round(row.get("total_revenue", 0), 2))
-            orders_widget.send(row.get("order_count", 0))
-            avg = row.get("avg_order", 0)
-            if avg:
+            session_rev = row.get("session_revenue", 0)
+            session_cnt = row.get("session_count", 0)
+
+            # Update session state
+            session_state["revenue"] = session_rev
+            session_state["orders"] = session_cnt
+
+            # Total = historical baseline + session
+            total_revenue = base_revenue + session_rev
+            total_orders = base_orders + session_cnt
+
+            revenue_widget.send(round(total_revenue, 2))
+            orders_widget.send(total_orders)
+
+            # Average is weighted: (base_total + session_total) / (base_count + session_count)
+            if total_orders > 0:
+                avg = total_revenue / total_orders
                 avg_order_widget.send(round(avg, 2))
 
-    pw.io.subscribe(totals, on_totals)
+            # Calculate "vs last hour" comparison
+            if vs_last_hour_widget and prev_hour["revenue"] > 0:
+                current_hour_rev = session_rev  # Current hour = session since we just started
+                pct_change = (
+                    (current_hour_rev - prev_hour["revenue"]) / prev_hour["revenue"]
+                ) * 100
+                vs_last_hour_widget.send(round(pct_change, 1))
 
-    # Subscribe to region breakdown - update individual stat widgets
+            # Save snapshot for time-travel
+            save_snapshot("total_revenue", total_revenue)
+
+    pw.io.subscribe(session_totals, on_totals)
+
+    # Subscribe to windowed stats - this shows real stream processing power
+    def on_window(key, row, time, is_addition):
+        if is_addition and row:
+            window_rev = row.get("window_revenue", 0)
+            window_cnt = row.get("window_count", 0)
+            window_end = row.get("window_end", 0)
+
+            if window_revenue_widget:
+                window_revenue_widget.send(round(window_rev, 2))
+
+            # Orders per minute (5-min window / 5)
+            if orders_per_min_widget:
+                opm = window_cnt / 5.0
+                orders_per_min_widget.send(round(opm, 1))
+
+            # Add to revenue chart with proper timestamp
+            if window_end:
+                revenue_chart.send(round(window_rev, 2), timestamp=float(window_end))
+
+    pw.io.subscribe(windowed_stats, on_window)
+
+    # Subscribe to region breakdown - ADD to historical baseline
     def on_region(key, row, time, is_addition):
         if is_addition and row:
             region = row.get("region", "")
             if region in region_widgets:
-                region_widgets[region].send(round(row.get("revenue", 0), 2))
+                session_rev = row.get("session_revenue", 0)
+                base_rev = base_regions.get(region, 0)
+                total_rev = base_rev + session_rev
+                region_widgets[region].send(round(total_rev, 2))
 
     pw.io.subscribe(by_region, on_region)
 
-    # Subscribe to category breakdown - update individual stat widgets
+    # Subscribe to category breakdown - ADD to historical baseline
     def on_category(key, row, time, is_addition):
         if is_addition and row:
             category = row.get("category", "")
             if category in category_widgets:
-                category_widgets[category].send(round(row.get("revenue", 0), 2))
+                session_rev = row.get("session_revenue", 0)
+                base_rev = base_categories.get(category, 0)
+                total_rev = base_rev + session_rev
+                category_widgets[category].send(round(total_rev, 2))
 
     pw.io.subscribe(by_category, on_category)
-
-    # Subscribe to individual orders for the chart - accumulate revenue
-    running_revenue = [0]  # Use list to allow mutation in closure
-
-    def on_order(key, row, time, is_addition):
-        if is_addition and row:
-            running_revenue[0] += row.get("total", 0)
-            revenue_chart.send(round(running_revenue[0], 2))
-
-    pw.io.subscribe(orders, on_order)
 
     pw.run(monitoring_level=pw.MonitoringLevel.NONE)
 
@@ -560,9 +775,14 @@ def run_pathway_demo(port: int = 3000):
         "revenue": sv.stat("revenue", title="Today's Revenue", unit="$"),
         "orders": sv.stat("orders", title="Today's Orders"),
         "avg_order": sv.stat("avg_order", title="Avg Order", unit="$"),
+        # NEW: Windowed metrics (demonstrates stream processing)
+        "window_revenue": sv.stat("window_revenue", title="5-Min Window", unit="$"),
+        "orders_per_min": sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0),
+        # NEW: Comparison metric (vs previous period)
+        "vs_last_hour": sv.stat("vs_last_hour", title="vs Last Hour", unit="%", alert_below=-20.0),
         # Charts
         "revenue_chart": sv.chart(
-            "revenue_chart", title="Revenue (Last 24h)", unit="$", color="#00ff88"
+            "revenue_chart", title="Revenue (5-min windows)", unit="$", color="#00ff88"
         ),
         "orders_chart": sv.chart("orders_chart", title="Orders/sec", color="#00d4ff"),
         # Region stats (one per region)
@@ -579,27 +799,60 @@ def run_pathway_demo(port: int = 3000):
 
     sv.start(port)
 
-    # Load historical data from DuckDB (this is what makes restarts work!)
+    # Build historical baseline from DuckDB
+    # This is the KEY fix: we track historical totals separately and ADD Pathway's
+    # session aggregations to them, rather than letting Pathway overwrite them.
+    historical_baseline = {
+        "revenue": 0,
+        "orders": 0,
+        "regions": {},
+        "categories": {},
+        "prev_hour": {"revenue": 0, "orders": 0},
+    }
+
     if DUCKDB_AVAILABLE:
         print("  Loading historical data...")
         today = get_todays_totals()
+
+        # Store baseline for Pathway to add to
+        historical_baseline["revenue"] = today["revenue"]
+        historical_baseline["orders"] = today["orders"]
+
         if today["orders"] > 0:
+            # Send initial values to widgets
             widgets["revenue"].send(round(today["revenue"], 2))
             widgets["orders"].send(today["orders"])
             widgets["avg_order"].send(round(today["revenue"] / today["orders"], 2))
             print(f"    Today: {today['orders']} orders, ${today['revenue']:.2f} revenue")
 
-        # Load hourly data for charts
-        for hour, _, revenue in get_hourly_breakdown(24):
-            widgets["revenue_chart"].send(round(revenue, 2), timestamp=hour.timestamp())
+        # Load previous hour for comparison
+        prev_hour = get_previous_period_totals(60)
+        historical_baseline["prev_hour"] = prev_hour
+        if prev_hour["revenue"] > 0:
+            print(f"    Last hour: ${prev_hour['revenue']:.2f} revenue")
 
-        # Load region breakdown
+        # Load windowed data for charts
+        for window_start, _, revenue in get_windowed_aggregates(5, 1):
+            widgets["revenue_chart"].send(round(revenue, 2), timestamp=window_start.timestamp())
+
+        # Load region breakdown and store baseline
         for region, _, revenue in get_region_breakdown():
             region_key = region.lower().replace("-", "_")
+            historical_baseline["regions"][region] = revenue
             if region_key in widgets:
                 widgets[region_key].send(round(revenue, 2))
 
+        # Load category breakdown and store baseline
+        for cat, _, revenue in get_category_breakdown():
+            historical_baseline["categories"][cat] = revenue
+            cat_key = cat.lower()
+            if cat_key in widgets:
+                widgets[cat_key].send(round(revenue, 2))
+
         print("  Historical data loaded!")
+        print(
+            f"    Baseline: ${historical_baseline['revenue']:.2f} revenue, {historical_baseline['orders']} orders"
+        )
 
     stop_event = threading.Event()
 
@@ -609,9 +862,9 @@ def run_pathway_demo(port: int = 3000):
     )
     producer_thread.start()
 
-    # Start Pathway thread with widget references
+    # Start Pathway thread with widget references AND historical baseline
     pathway_thread = threading.Thread(
-        target=run_pathway, args=(stop_event, port, widgets), daemon=True
+        target=run_pathway, args=(stop_event, port, widgets, historical_baseline), daemon=True
     )
     pathway_thread.start()
 

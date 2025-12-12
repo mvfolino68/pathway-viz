@@ -77,7 +77,6 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>, shutdown: on
 
     let app = Router::new()
         .route("/", get(serve_frontend))
-        .route("/embed.html", get(serve_embed_demo_page))
         .route("/embed/:widget_id", get(serve_embed))
         .route("/ws", get(ws_handler))
         .with_state(app_state);
@@ -95,11 +94,6 @@ pub async fn start_server(port: u16, tx: broadcast::Sender<String>, shutdown: on
 }
 
 async fn serve_frontend() -> impl IntoResponse {
-    Html(FRONTEND_HTML)
-}
-
-/// Serve the embed demo page showing widgets in iframes
-async fn serve_embed_demo_page() -> impl IntoResponse {
     Html(EMBED_DEMO_HTML)
 }
 

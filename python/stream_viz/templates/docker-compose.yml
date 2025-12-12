@@ -1,0 +1,71 @@
+# StreamViz Production Stack
+#
+# Usage:
+#   docker compose up -d          # Start everything
+#   docker compose logs -f app    # View app logs
+#   docker compose down -v        # Stop and clean up
+#
+# This runs:
+#   - Redpanda (Kafka-compatible message broker)
+#   - Your StreamViz pipeline
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.2.4
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  init-topics:
+    image: redpandadata/redpanda:v24.2.4
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        rpk topic create events \
+          --brokers redpanda:29092 \
+          --partitions 1 \
+          --replicas 1 || true
+        echo "Topics ready"
+    restart: "no"
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:29092
+      - STREAMVIZ_PORT=3000
+    volumes:
+      - streamviz-data:/app/data
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  streamviz-data:

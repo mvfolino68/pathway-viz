@@ -15,6 +15,31 @@ This accumulates revenue **since app start**. If you restart:
 - StreamViz shows $0
 - Historical data is gone
 
+## The Solution: Historical Baseline Pattern
+
+The key insight is to **track historical totals separately** from Pathway's session aggregations, then **add them together**:
+
+```python
+# Load historical baseline from DuckDB
+historical = get_todays_totals()  # {"revenue": 5000, "orders": 100}
+
+# Pathway only tracks THIS SESSION's changes
+session_totals = orders.reduce(
+    session_revenue=pw.reducers.sum(pw.this.total),
+    session_count=pw.reducers.count(),
+)
+
+# When Pathway emits, ADD to baseline (not replace)
+def on_totals(key, row, time, is_addition):
+    if is_addition:
+        total = historical["revenue"] + row["session_revenue"]
+        revenue_widget.send(total)
+
+pw.io.subscribe(session_totals, on_totals)
+```
+
+This pattern ensures historical data is preserved and new data accumulates on top.
+
 ## Solution Overview
 
 | Approach                   | Best For                                             | Complexity |
@@ -333,6 +358,83 @@ docker run -p 3000:3000 \
 
 ---
 
+## Windowed Aggregations
+
+Real stream processing uses **windows**, not unbounded aggregations. StreamViz supports Pathway's windowing:
+
+```python
+from datetime import timedelta
+
+# 5-minute tumbling windows
+windowed = orders.windowby(
+    pw.this.timestamp // 1000,  # Convert ms to seconds
+    window=pw.temporal.tumbling(duration=300),  # 5 min = 300 sec
+).reduce(
+    window_end=pw.this._pw_window_end,
+    revenue=pw.reducers.sum(pw.this.total),
+    count=pw.reducers.count(),
+)
+
+# Display windowed metrics
+sv.stat("window_revenue", title="5-Min Revenue", unit="$")
+sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)  # Alert if low!
+```
+
+---
+
+## Time-Travel Queries
+
+Store snapshots to answer "what was the dashboard showing at 3pm yesterday?":
+
+```python
+# Create snapshots table
+db.execute("""
+    CREATE TABLE IF NOT EXISTS snapshots (
+        snapshot_id VARCHAR PRIMARY KEY,
+        snapshot_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metric_name VARCHAR,
+        metric_value DOUBLE,
+        window_start TIMESTAMP,
+        window_end TIMESTAMP
+    )
+""")
+
+# Save snapshots when metrics update
+def save_snapshot(metric_name: str, value: float):
+    db.execute(
+        "INSERT INTO snapshots (snapshot_id, metric_name, metric_value) VALUES (?, ?, ?)",
+        [f"{metric_name}_{datetime.now().isoformat()}", metric_name, value]
+    )
+
+# Query historical state
+def get_snapshot_at_time(metric_name: str, target_time: datetime) -> float:
+    result = db.execute("""
+        SELECT metric_value FROM snapshots
+        WHERE metric_name = ? AND snapshot_time <= ?
+        ORDER BY snapshot_time DESC LIMIT 1
+    """, [metric_name, target_time]).fetchone()
+    return result[0] if result else None
+```
+
+---
+
+## Alert Thresholds
+
+Widgets can change color based on value thresholds:
+
+```python
+# Alert when orders/min drops below 2
+opm = sv.stat("orders_per_min", title="Orders/Min", alert_below=2.0)
+
+# Alert when revenue exceeds budget
+revenue = sv.stat("revenue", title="Revenue", alert_above=10000)
+
+# When value crosses threshold, widget sends alert status
+opm.send(1.5)  # Sends {"alert": "low", "value": 1.5, ...}
+```
+
+---
+
 ## Best Practices
 
 1. **Always use consistent IDs** — Widget IDs and Pathway `persistent_id` must be stable across restarts
@@ -341,7 +443,13 @@ docker run -p 3000:3000 \
 
 3. **Backup the state directory** — `./pathway_state/` and `./data/` contain your state
 
-4. **Use transactions for DuckDB** — Batch writes for better performance:
+4. **Use the Historical Baseline Pattern** — Don't let Pathway overwrite historical data:
+
+   ```python
+   total = historical_baseline + session_value
+   ```
+
+5. **Use transactions for DuckDB** — Batch writes for better performance:
 
    ```python
    db.execute("BEGIN TRANSACTION")
@@ -349,7 +457,7 @@ docker run -p 3000:3000 \
    db.execute("COMMIT")
    ```
 
-5. **Set retention policies** — Don't let tables grow unbounded:
+6. **Set retention policies** — Don't let tables grow unbounded:
    ```sql
    DELETE FROM metrics WHERE timestamp < NOW() - INTERVAL '7 days'
    ```

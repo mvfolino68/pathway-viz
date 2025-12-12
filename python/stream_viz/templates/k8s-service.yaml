@@ -1,0 +1,16 @@
+# StreamViz Kubernetes Service
+#
+# Exposes the StreamViz deployment within the cluster.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamviz
+spec:
+  selector:
+    app: streamviz
+  ports:
+    - port: 80
+      targetPort: 3000
+      name: http
+  type: ClusterIP

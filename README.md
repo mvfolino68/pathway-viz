@@ -34,8 +34,19 @@ pip install stream-viz[all]       # Everything
 ## Quick Start
 
 ```bash
-python -m stream_viz --mode simple   # Run demo (no Docker)
-python -m stream_viz                 # Run e-commerce demo (requires Docker)
+pip install stream-viz
+
+# Run demos
+stream-viz demo --mode simple   # No Docker required
+stream-viz demo                 # E-commerce demo (requires Docker)
+
+# Scaffold a new project
+stream-viz init my-dashboard           # Creates project with Docker files
+stream-viz init my-dashboard --k8s     # Include Kubernetes manifests
+
+# View templates
+stream-viz templates                   # List all templates
+stream-viz show docker-compose         # Print template to stdout
 ```
 
 ## Widgets
@@ -69,14 +80,29 @@ For comprehensive guides, see the **[docs/](./docs/)** folder:
 - **[Deployment](./docs/deployment.md)** — Docker, Kubernetes, reverse proxy setup
 - **[E-commerce Example](./docs/examples/ecommerce.md)** — Kafka + Pathway demo with embedded widgets and optional DuckDB persistence
 
-## Examples
+## Docker
+
+Pre-built images are available on Docker Hub:
 
 ```bash
-# No-Docker demo (manual mode)
-python -m stream_viz --mode simple
+# Pull the image
+docker pull mvfolino68/stream-viz:latest
 
-# E-commerce demo (Kafka + Pathway + optional DuckDB persistence, requires Docker)
-python -m stream_viz
+# Run the simple demo
+docker run -p 3000:3000 mvfolino68/stream-viz python -m stream_viz --mode simple
+
+# Or use your own pipeline
+docker run -p 3000:3000 -v $(pwd)/my_pipeline.py:/app/pipeline.py \
+  mvfolino68/stream-viz python /app/pipeline.py
+```
+
+## CLI Reference
+
+```bash
+stream-viz demo [--mode simple|pathway] [--port PORT]   # Run demos
+stream-viz init DIRECTORY [--k8s] [--force]             # Scaffold project
+stream-viz show TEMPLATE                                 # Print template
+stream-viz templates                                     # List templates
 ```
 
 ## Architecture
