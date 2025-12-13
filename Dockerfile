@@ -74,10 +74,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the wheel from builder
-COPY --from=builder /app/target/wheels/*.whl ./
+COPY --from=builder /app/target/wheels/ /tmp/wheels/
 
 # Install the package with all optional dependencies
-RUN pip install --no-cache-dir *.whl[all] && rm -f *.whl
+RUN pip install --no-cache-dir /tmp/wheels/*.whl[all] && rm -rf /tmp/wheels
 
 # Environment variables
 ENV PATHWAYVIZ_PORT=3000
