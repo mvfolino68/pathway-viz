@@ -1,8 +1,7 @@
 # Publish Docker image to Docker Hub
 #
 # Triggers:
-#   - Push to main/master branch
-#   - Release tags (v*)
+#   - After PyPI Publish workflow completes successfully
 #   - Manual dispatch
 #
 # Images are published to: docker.io/mvfolino68/pathway-viz
@@ -14,9 +13,9 @@
 name: Docker Publish
 
 on:
-  push:
-    branches: [main, master]
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["PyPI Publish"]
+    types: [completed]
   workflow_dispatch:
 
 env:
@@ -26,10 +25,22 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # Only run if PyPI publish succeeded (or manual trigger)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Use the ref from the triggering workflow for workflow_run events
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+
+      - name: Get version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 'version = ' pyproject.toml | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -41,23 +52,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
