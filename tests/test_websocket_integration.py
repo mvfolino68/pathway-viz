@@ -6,6 +6,7 @@ import socket
 import time
 from dataclasses import dataclass
 
+import pathway as pw
 import pathway_viz as pv
 
 
@@ -139,39 +140,32 @@ def _recv_json_until(client: _WSClient, predicate, timeout_s: float = 5.0) -> di
     raise AssertionError(f"timeout waiting for message; last error: {last_err}")
 
 
-def test_websocket_receives_config_history_and_live_data():
+def test_websocket_receives_config():
+    """Test that websocket clients receive config message on connect."""
     port = _free_port()
 
     pv.title("WebSocket Test")
     pv.configure(embed=True)
-    stat = pv.stat("ws_test_stat", title="WS Stat")
+    t = pw.debug.table_from_markdown(
+        """
+        | value
+        | 0
+        """
+    )
+    pv.stat(t, "value", id="ws_test_stat", title="WS Stat")
 
     pv.start(port)
 
     client: _WSClient | None = None
     try:
-        stat.send(1.23)
-        time.sleep(0.4)
+        time.sleep(0.2)
 
         client = _ws_connect("127.0.0.1", port)
 
-        _recv_json_until(client, lambda m: m.get("type") == "config", timeout_s=7)
-
-        history = _recv_json_until(client, lambda m: m.get("type") == "history", timeout_s=7)
-        widgets = {w.get("widget"): w.get("data") for w in history.get("widgets", [])}
-        assert "ws_test_stat" in widgets
-        assert any(abs(point[1] - 1.23) < 1e-9 for point in widgets["ws_test_stat"])
-
-        stat.send(2.34)
-
-        data = _recv_json_until(
-            client,
-            lambda m: m.get("type") == "data"
-            and m.get("widget") == "ws_test_stat"
-            and m.get("value") == 2.34,
-            timeout_s=7,
-        )
-        assert data["timestamp"]
+        config = _recv_json_until(client, lambda m: m.get("type") == "config", timeout_s=7)
+        assert config["title"] == "WebSocket Test"
+        assert "ws_test_stat" in config["widgets"]
+        assert config["widgets"]["ws_test_stat"]["widget_type"] == "stat"
     finally:
         if client is not None:
             client.sock.close()

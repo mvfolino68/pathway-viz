@@ -1,65 +1,25 @@
 # PathwayViz Documentation
 
-Real-time dashboards for Kafka/Redpanda streaming pipelines.
+PathwayViz turns streaming data into a live dashboard you can also embed inside your own product.
 
-## Quick Start
+You define widgets in Python, stream updates (manually or via Pathway), and PathwayViz serves:
 
-```bash
-pip install pathway-viz
+- a dashboard at `/`
+- per-widget embeds at `/embed/{widget_id}` (iframes)
 
-# No-Docker demo
-pathway-viz demo --mode simple
+Start with **[Getting Started](./getting-started.md)**.
 
-# Kafka + Pathway demo (requires Docker)
-pathway-viz demo
-```
+After your first pipeline runs, the usual next steps are:
 
-Opens:
+- enable embedding and add `<iframe ...>` tags in your app
+- deploy with Docker
 
-- **Dashboard**: <http://localhost:3000>
-- **Portal**: <http://localhost:3001> (embedded widgets demo)
+## Guides
 
-The demo auto-starts Kafka (Redpanda) via Docker.
-
-## What is PathwayViz?
-
-PathwayViz is a **visualization layer** for [Pathway](https://pathway.com/) streaming pipelines:
-
-- **Kafka/Redpanda** → ingests data
-- **Pathway** → processes streams (aggregations, windows)
-- **PathwayViz** → displays real-time dashboards
-- **DuckDB** → persists data (survives restarts)
-
-```python
-import pathway as pw
-import pathway_viz as pv
-
-orders = pw.io.kafka.read(...)
-totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-
-pv.stat(totals, "revenue", title="Today's Revenue", unit="$")
-pv.start()
-pw.run()
-```
-
-## Documentation
-
-- **[Getting Started](./getting-started.md)** — Installation and first dashboard
-- **[Concepts](./concepts.md)** — How Pathway, windowing, and PathwayViz work
-- **[Widgets](./widgets.md)** — stat, chart, gauge, table reference
-- **[Persistence](./persistence.md)** — DuckDB for surviving restarts
-- **[Deployment](./deployment.md)** — Docker, Kubernetes
-
-## Embedding
-
-```python
-pv.configure(embed=True)
-pv.stat("revenue", title="Revenue")
-pv.start()
-```
-
-```html
-<iframe src="http://localhost:3000/embed/revenue"></iframe>
-```
-
-See [examples/](../examples/) for React, Svelte, and Next.js components.
+| I want to...              | Read this                               |
+| ------------------------- | --------------------------------------- |
+| Set up my first dashboard | [Getting Started](./getting-started.md) |
+| Add widgets               | [Widgets](./widgets.md)                 |
+| Embed in my web app       | [Embedding](./embedding.md)             |
+| Deploy to production      | [Deployment](./deployment.md)           |
+| Understand how it works   | [Concepts](./concepts.md)               |

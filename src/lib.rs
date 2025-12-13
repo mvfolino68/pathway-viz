@@ -5,7 +5,6 @@ use std::thread;
 use tokio::sync::broadcast;
 use tokio::sync::oneshot;
 
-mod generator;
 mod server;
 mod state;
 
@@ -102,33 +101,11 @@ fn send_point(timestamp: u64, value: f64) -> PyResult<()> {
     send_data(&data.to_string())
 }
 
-/// Start the demo mode with auto-generated random data
-#[pyfunction]
-fn start_demo(port: u16) -> PyResult<()> {
-    start_server(port)?;
-
-    let state = GLOBAL_STATE.get().unwrap();
-    generator::spawn_demo_generator(state.tx.clone());
-
-    // Block forever in demo mode (like original behavior)
-    loop {
-        thread::sleep(std::time::Duration::from_secs(60));
-    }
-}
-
-/// Start the dashboard (legacy function, now an alias for start_demo)
-#[pyfunction]
-fn start_dashboard(port: u16) -> PyResult<()> {
-    start_demo(port)
-}
-
 #[pymodule]
 fn _pathway_viz(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(start_server, m)?)?;
     m.add_function(wrap_pyfunction!(stop_server, m)?)?;
     m.add_function(wrap_pyfunction!(send_data, m)?)?;
     m.add_function(wrap_pyfunction!(send_point, m)?)?;
-    m.add_function(wrap_pyfunction!(start_demo, m)?)?;
-    m.add_function(wrap_pyfunction!(start_dashboard, m)?)?;
     Ok(())
 }

@@ -246,61 +246,70 @@
         const container = div.querySelector(".chart-area");
         const timeData = [],
           valueData = [];
-        const h = cfg.height || 180;
-        const uplot = new uPlot(
-          {
-            width: container.offsetWidth || 400,
-            height: h,
-            series: [
-              {},
-              {
-                stroke: color,
-                width: 1.5,
-                fill: (self) => {
-                  const g = self.ctx.createLinearGradient(0, 0, 0, h);
-                  g.addColorStop(0, color + "30");
-                  g.addColorStop(1, color + "05");
-                  return g;
-                },
-              },
-            ],
-            scales: { x: { time: true }, y: { auto: true } },
-            axes: [
-              {
-                stroke: "#404040",
-                grid: { stroke: "#262626", width: 1 },
-                font: "500 9px 'JetBrains Mono'",
-                size: 40,
-                ticks: { stroke: "#404040", size: 3 },
-              },
-              {
-                stroke: "#404040",
-                grid: { stroke: "#262626", width: 1 },
-                font: "500 9px 'JetBrains Mono'",
-                size: 45,
-                ticks: { stroke: "#404040", size: 3 },
-              },
-            ],
-            cursor: {
-              show: true,
-              drag: { x: false, y: false },
-              points: { size: 6, fill: color },
-            },
-            legend: { show: false },
-          },
-          [timeData, valueData],
-          container
-        );
+
+        // Store widget data first, create chart after layout
         widgets[id] = {
           type: "metric",
           element: div,
           valueEl: div.querySelector(".metric-value"),
           timeData,
           valueData,
-          uplot,
+          uplot: null,
           maxPoints: cfg.max_points || 200,
-          chartHeight: h,
+          chartHeight: cfg.height || 180,
+          timeWindow: cfg.time_window || 120,
         };
+
+        // Defer chart creation until container has dimensions
+        requestAnimationFrame(() => {
+          const h = container.offsetHeight || cfg.height || 180;
+          const w = widgets[id];
+          w.chartHeight = h;
+          w.uplot = new uPlot(
+            {
+              width: container.offsetWidth || 400,
+              height: h,
+              series: [
+                {},
+                {
+                  stroke: color,
+                  width: 1.5,
+                  fill: (self) => {
+                    const g = self.ctx.createLinearGradient(0, 0, 0, h);
+                    g.addColorStop(0, color + "30");
+                    g.addColorStop(1, color + "05");
+                    return g;
+                  },
+                },
+              ],
+              scales: { x: { time: true }, y: { auto: true } },
+              axes: [
+                {
+                  stroke: "#404040",
+                  grid: { stroke: "#262626", width: 1 },
+                  font: "500 9px 'JetBrains Mono'",
+                  size: 40,
+                  ticks: { stroke: "#404040", size: 3 },
+                },
+                {
+                  stroke: "#404040",
+                  grid: { stroke: "#262626", width: 1 },
+                  font: "500 9px 'JetBrains Mono'",
+                  size: 45,
+                  ticks: { stroke: "#404040", size: 3 },
+                },
+              ],
+              cursor: {
+                show: true,
+                drag: { x: false, y: false },
+                points: { size: 6, fill: color },
+              },
+              legend: { show: false },
+            },
+            [timeData, valueData],
+            container
+          );
+        });
       }
 
       function createStatWidget(id, cfg) {
@@ -417,13 +426,23 @@
         if (!w) return;
         if (w.type === "metric") {
           const ts = data.timestamp / 1000;
+          const timeWindow = w.timeWindow || 120; // seconds (2 minutes default)
+
+          // Remove points older than time window
+          const cutoff = ts - timeWindow;
+          while (w.timeData.length > 0 && w.timeData[0] < cutoff) {
+            w.timeData.shift();
+            w.valueData.shift();
+          }
+
+          // Also cap by maxPoints as a safeguard
           if (w.timeData.length >= w.maxPoints) {
             w.timeData.shift();
             w.valueData.shift();
           }
           w.timeData.push(ts);
           w.valueData.push(data.value);
-          w.uplot.setData([w.timeData, w.valueData]);
+          if (w.uplot) w.uplot.setData([w.timeData, w.valueData]);
           w.valueEl.textContent = formatValue(data.value);
         } else if (w.type === "stat") {
           w.valueEl.textContent =
@@ -511,7 +530,7 @@
           if (w.type === "metric") {
             w.timeData.length = 0;
             w.valueData.length = 0;
-            w.uplot.setData([w.timeData, w.valueData]);
+            if (w.uplot) w.uplot.setData([w.timeData, w.valueData]);
           }
           for (const [ts, val] of item.data)
             handleData({

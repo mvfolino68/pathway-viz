@@ -22,17 +22,20 @@ pytest                         # Verify everything works
 
 ## Project Structure
 
-```text
-pathway-viz/
-├── src/                        # Rust (PyO3 + Axum WebSocket server)
-├── python/pathway_viz/         # Python package
-├── frontend/                   # Browser UI (index.html, embed.html)
-├── examples/                   # React/Svelte/Next.js integration examples
-├── tests/                      # Python tests
-├── docs/                       # Documentation
-├── pyproject.toml              # Python config — VERSION SOURCE OF TRUTH
-├── Cargo.toml                  # Rust config — keep version in sync
-└── Dockerfile
+```mermaid
+graph TD
+    A[pathway-viz/] --> B[src/]
+    A --> C[python/pathway_viz/]
+    A --> D[frontend/]
+    A --> E[tests/]
+    A --> F[docs/]
+    B --> B1[lib.rs - PyO3 bindings]
+    B --> B2[server.rs - WebSocket server]
+    B --> B3[state.rs - Global state]
+    C --> C1[__init__.py - Public API]
+    C --> C2[_widgets.py - Widget classes]
+    D --> D1[index.html - Dashboard UI]
+    D --> D2[embed.html - Embeddable widgets]
 ```
 
 ## Building
@@ -48,75 +51,57 @@ After any Rust changes, run `maturin develop` to rebuild.
 ## Testing & Linting
 
 ```bash
-pytest                       # Run tests
+pytest                        # Run tests
 ruff check . && ruff format . # Lint and format Python
-cargo fmt && cargo clippy    # Lint Rust
+cargo fmt && cargo clippy     # Lint Rust
 ```
 
-## Releasing a New Version
+## Common Tasks
 
-PathwayViz uses **tag-triggered releases**. Pushing a `v*` tag to GitHub automatically builds and publishes to PyPI.
+| Task               | Command                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| Add widget type    | Edit `_widgets.py` → `index.html` → `__init__.py` → add tests |
+| Modify Rust server | Edit `src/` → `maturin develop`                               |
+| Update frontend    | Edit `frontend/` → refresh browser                            |
 
-### Step-by-Step Release
+## Releasing
 
-1. **Update version** in both files (keep them in sync):
-
-   - `pyproject.toml`: `version = "X.Y.Z"`
-   - `Cargo.toml`: `version = "X.Y.Z"`
-
-2. **Regenerate lock files**:
-
-   ```bash
-   uv lock
-   cargo check
-   ```
-
-3. **Commit, tag, and push**:
-
-   ```bash
-   git add -A
-   git commit -m "Release vX.Y.Z"
-   git tag vX.Y.Z
-   git push origin master && git push origin vX.Y.Z
-   ```
-
-   The two `git push` commands:
-
-   - `git push origin master` — pushes your commits to the remote branch
-   - `git push origin vX.Y.Z` — pushes the tag, which **triggers the PyPI publish workflow**
-
-   Tags and commits are pushed separately because Git doesn't push tags by default.
-
-### What Happens After Tagging
-
-The `pypi-publish.yml` workflow automatically:
-
-1. Builds wheels for Linux, macOS (Intel + ARM), and Windows
-2. Publishes to PyPI using trusted publisher (no API token needed)
-
-### Manual Release (if needed)
+Tag-triggered releases. Push a `v*` tag → GitHub Actions builds and publishes to PyPI.
 
 ```bash
-maturin build --release
-twine upload target/wheels/*  # Requires PyPI API token
+# 1. Update version in pyproject.toml AND Cargo.toml
+# 2. Regenerate locks
+uv lock && cargo check
+
+# 3. Commit and tag
+git add -A
+git commit -m "Release vX.Y.Z"
+git tag vX.Y.Z
+git push origin master && git push origin vX.Y.Z
 ```
 
 ## Docker
 
 ```bash
 docker build -t pathway-viz .
-docker run -p 3000:3000 pathway-viz pathway-viz demo --mode simple
+docker run -p 3000:3000 pathway-viz pathway-viz demo
 ```
 
-Pushing to `master` or creating a tag triggers `.github/workflows/docker-publish.yml`.
+## Contributing
 
-## Common Tasks
+1. Fork and create a feature branch from `main`
+2. Make changes, ensure tests pass (`pytest`)
+3. Lint with `ruff check . && ruff format .`
+4. Open a PR with a clear description
 
-| Task                   | Steps                                                          |
-| ---------------------- | -------------------------------------------------------------- |
-| **Add widget type**    | Edit `_widgets.py` → `index.html` → `__init__.py` → add tests  |
-| **Modify Rust server** | Edit `src/` → run `maturin develop`                            |
-| **Update frontend**    | Edit `frontend/` → changes apply on browser refresh (dev mode) |
+### Reporting Issues
+
+Include:
+
+- Python/Rust versions (`python --version`, `rustc --version`)
+- OS and version
+- Steps to reproduce
+- Expected vs actual behavior
 
 ## Troubleshooting
 
@@ -128,7 +113,6 @@ Pushing to `master` or creating a tag triggers `.github/workflows/docker-publish
 
 ## Resources
 
-- [Maturin](https://www.maturin.rs/) — Build tool for Rust Python extensions
+- [Maturin](https://www.maturin.rs/) — Rust Python extensions
 - [PyO3](https://pyo3.rs/) — Rust bindings for Python
 - [uv](https://docs.astral.sh/uv/) — Fast Python package manager
-- [Trusted Publishers](https://docs.pypi.org/trusted-publishers/) — PyPI OIDC auth

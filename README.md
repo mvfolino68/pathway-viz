@@ -1,131 +1,95 @@
 # PathwayViz
 
-Real-time dashboards for streaming data pipelines. Zero config, embeddable, fast.
+Real-time dashboards for streaming pipelines. No frontend code required.
 
+Build once in Python, then:
+
+- run a live dashboard at `http://localhost:3000`
+- embed individual live widgets in your app via iframes at `http://localhost:3000/embed/{widget_id}`
+
+[![PyPI](https://img.shields.io/pypi/v/pathway-viz)](https://pypi.org/project/pathway-viz/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-## What is PathwayViz?
+## The Problem
 
-**Pathway** handles streaming aggregations. **PathwayViz** makes them visible.
+You're building a streaming pipeline. You want a dashboard to see what's happening. Your options:
+
+1. **Jupyter notebooks** — Great for exploration, but you can't deploy them or embed them in your app
+2. **Grafana/Prometheus** — Works, but now you need to set up metrics exporters, another service, learn PromQL
+3. **Build a React app** — Now you're maintaining frontend code, WebSocket connections, state management
+
+PathwayViz is a simpler option: add a few lines of Python, get a production-ready dashboard.
+
+## How It Works
 
 ```python
 import pathway as pw
 import pathway_viz as pv
 
+# Read from Kafka (or any Pathway source)
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
+# Widgets auto-update when Pathway updates the table
 pv.stat(totals, "revenue", title="Revenue", unit="$")
 pv.start()
 pw.run()
 ```
 
-Open `http://localhost:3000` → live dashboard.
-
-Note: the Python module name is `pathway_viz` (e.g. `import pathway_viz as pv`).
-
-## Quick Start
-
-```bash
-pip install pathway-viz
-import pathway_viz as pv
-
-pv.stat("revenue", title="Revenue", unit="$")
-pv.start()
-```
-
-## Installation
-
-```bash
-# Basic package (simple demo, no external dependencies)
-pip install pathway-viz
-
-# Full demo with Kafka/Redpanda + Pathway + DuckDB
-pip install pathway-viz[demo]
-```
-
-## Run demos
-
-pathway-viz demo --mode simple # No Docker required
-pathway-viz demo # E-commerce demo (requires Docker)
-
-## Scaffold a new project
-
-```bash
-pathway-viz init my-dashboard           # Creates a new project
-
-# View templates
-pathway-viz templates                   # List available templates
-pathway-viz show pipeline               # View pipeline template
-pathway-viz show docker-compose         # View Docker compose template
-```
-
-## Widgets
-
-| Widget  | Purpose        | Example                                           |
-| ------- | -------------- | ------------------------------------------------- |
-| `stat`  | Big numbers    | `pv.stat("revenue", title="Revenue", unit="$")`   |
-| `chart` | Time series    | `pv.chart("latency", title="Latency", unit="ms")` |
-| `gauge` | Bounded values | `pv.gauge("cpu", title="CPU", max_val=100)`       |
-| `table` | Live rows      | `pv.table("events", columns=["time", "msg"])`     |
-
-## Embedding
-
-```python
-pv.configure(embed=True)
-pv.stat("revenue", title="Revenue")
-pv.start()
-```
+Run it, open [http://localhost:3000](http://localhost:3000), done.
 
 ```html
 <iframe src="http://localhost:3000/embed/revenue"></iframe>
 ```
 
-## Documentation
-
-For comprehensive guides, see the **[docs/](./docs/)** folder:
-
-- **[Concepts](./docs/concepts.md)** — How PathwayViz, Pathway, and windowing work
-- **[Widgets](./docs/widgets.md)** — All widget types with parameters and examples
-- **[Persistence](./docs/persistence.md)** — DuckDB, Pathway checkpointing, surviving restarts
-- **[Deployment](./docs/deployment.md)** — Docker, Kubernetes, reverse proxy setup
-- **[E-commerce Example](./docs/examples/ecommerce.md)** — Kafka + Pathway demo with embedded widgets and optional DuckDB persistence
-
-## Docker
-
-Pre-built images are available on Docker Hub:
-
-```bash
-# Pull the image
-docker pull mvfolino68/pathway-viz:latest
-
-# Run the simple demo
-docker run -p 3000:3000 mvfolino68/pathway-viz pathway-viz demo --mode simple
-
-# Or use your own pipeline
-docker run -p 3000:3000 -v $(pwd)/my_pipeline.py:/app/pipeline.py \
-  mvfolino68/pathway-viz python /app/pipeline.py
-```
-
-## CLI Reference
-
-```bash
-pathway-viz demo [--mode simple|pathway] [--port PORT]   # Run demos
-pathway-viz init DIRECTORY [--k8s] [--force]             # Scaffold project
-pathway-viz show TEMPLATE                                 # Print template
-pathway-viz templates                                     # List templates
-```
+See [Embedding docs](./docs/embedding.md) for React and Svelte components.
 
 ## Architecture
 
-```text
-Pathway Pipeline → PathwayViz Python (`pathway_viz`) → Rust WebSocket Server → Browser
-                                              ↓
-                                      Ring buffers for history
+```mermaid
+flowchart LR
+    A[Pathway Pipeline] --> B[PathwayViz Python]
+    B --> C[Rust WebSocket Server]
+    C --> D[Browser]
+    C --> E[Ring Buffers]
 ```
 
-The Rust WebSocket server handles high-throughput broadcast without Python GIL bottlenecks.
+The Rust server handles high-throughput WebSockets and caches recent history in ring buffers so new clients can instantly catch up.
+
+## Why Rust?
+
+PathwayViz uses a small Rust extension module (built with `pyo3`) for the hot path:
+
+- WebSocket fan-out to many browser clients (Tokio + Axum)
+- in-memory ring buffers for recent history per widget
+- serving the embedded frontend assets from the binary
+
+This keeps the runtime responsive under load and avoids Python bottlenecks in the networking/event-loop layer.
+
+## Demo
+
+## Install
+
+```bash
+pip install pathway-viz
+```
+
+## Documentation
+
+- [Getting Started](./docs/getting-started.md)
+- [Widgets](./docs/widgets.md)
+- [Embedding](./docs/embedding.md)
+- [Deployment](./docs/deployment.md)
+- [Concepts](./docs/concepts.md)
+
+## Roadmap
+
+- [x] Core widgets: stat, chart, gauge, table
+- [x] Pathway integration
+- [x] Embed mode for iframes
+- [ ] Theme customization
+- [ ] Prometheus metrics endpoint
+- [ ] Authentication
 
 ## License
 

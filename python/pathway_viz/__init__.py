@@ -38,7 +38,6 @@ from typing import Any
 
 # Re-export public API
 from ._config import configure, title
-from ._demo import run_demo
 from ._pathway_viz import send_data as _send_data
 from ._server import start, stop
 from ._widgets import chart, gauge, stat, table
@@ -62,7 +61,6 @@ __all__ = [
     "stop",
     # Utilities
     "send_json",
-    "run_demo",
 ]
 
 

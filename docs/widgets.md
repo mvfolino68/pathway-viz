@@ -1,316 +1,122 @@
 # Widgets Reference
 
-PathwayViz provides four widget types for different visualization needs.
+## Which Widget Should I Use?
 
-## stat — Big Numbers
-
-Display a single prominent value with optional delta indicator.
-
-```python
-# Pathway mode
-totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-pv.stat(totals, "revenue", title="Total Revenue", unit="$")
-
-# Manual mode
-revenue = pv.stat("revenue", title="Total Revenue", unit="$")
-revenue.send(125000)
-```
-
-### Parameters
-
-| Parameter | Type         | Default     | Description                              |
-| --------- | ------------ | ----------- | ---------------------------------------- |
-| `source`  | Table \| str | required    | Pathway table or widget ID               |
-| `column`  | str          | None        | Column to display (required for Pathway) |
-| `id`      | str          | auto        | Widget identifier                        |
-| `title`   | str          | column name | Display title                            |
-| `unit`    | str          | ""          | Unit suffix ($, %, ms, etc.)             |
-| `color`   | str          | auto        | Text color                               |
-| `format`  | str          | None        | Python format string (",.2f")            |
-| `delta`   | bool         | True        | Show change from previous value          |
-| `embed`   | bool         | False       | Enable /embed/{id} endpoint              |
-
-### Use Cases
-
-- Revenue totals
-- Order counts
-- Active users
-- Error rates
+| I want to show...                           | Use this |
+| ------------------------------------------- | -------- |
+| A single number (revenue, count, avg)       | `stat`   |
+| How something changes over time             | `chart`  |
+| A percentage or bounded value (CPU, memory) | `gauge`  |
+| A list of items (top customers, events)     | `table`  |
 
 ---
 
-## chart — Time Series
+## stat
 
-Display values over time as line or area chart.
+A big number, optionally showing how much it changed.
+
+**When to use:** Totals, counts, averages—any single value you want prominent.
 
 ```python
-# Pathway mode with windowing
-orders_per_min = orders.windowby(
-    pw.this.timestamp,
-    window=pw.temporal.tumbling(duration=timedelta(minutes=1)),
-).reduce(
-    window_end=pw.this._pw_window_end,
-    count=pw.reducers.count(),
-)
+pv.stat(totals, "revenue", title="Revenue", unit="$")
+```
+
+| Parameter  | Type  | Default     | Description                              |
+| ---------- | ----- | ----------- | ---------------------------------------- |
+| `pw_table` | Table | required    | Pathway table to display                 |
+| `column`   | str   | None        | Column to display (required for Pathway) |
+| `title`    | str   | column name | Display title                            |
+| `unit`     | str   | ""          | Unit suffix ($, %, ms)                   |
+| `format`   | str   | None        | Python format string (",.2f")            |
+| `delta`    | bool  | True        | Show change from previous                |
+
+---
+
+## chart
+
+A line or area chart showing values over time.
+
+**When to use:** Trends, rates, anything where history matters.
+
+```python
 pv.chart(orders_per_min, "count", x_column="window_end", title="Orders/min")
-
-# Manual mode
-latency = pv.chart("latency", title="Latency", unit="ms")
-latency.send(45.2)  # Timestamp auto-generated
-latency.send(52.1, timestamp=1702300000)  # Custom timestamp
 ```
 
-### Parameters
-
-| Parameter    | Type         | Default     | Description                                |
-| ------------ | ------------ | ----------- | ------------------------------------------ |
-| `source`     | Table \| str | required    | Pathway table or widget ID                 |
-| `y_column`   | str          | None        | Value column (required for Pathway)        |
-| `x_column`   | str          | None        | Time column (uses Pathway time if not set) |
-| `id`         | str          | auto        | Widget identifier                          |
-| `title`      | str          | column name | Display title                              |
-| `unit`       | str          | ""          | Y-axis unit                                |
-| `color`      | str          | auto        | Line/fill color                            |
-| `chart_type` | str          | "line"      | "line" or "area"                           |
-| `max_points` | int          | 200         | Max data points to display                 |
-| `height`     | int          | None        | Chart height in pixels                     |
-| `embed`      | bool         | False       | Enable /embed/{id} endpoint                |
-
-### Use Cases
-
-- Requests over time
-- Revenue trends
-- Latency monitoring
-- CPU/memory history
+| Parameter    | Type  | Default     | Description              |
+| ------------ | ----- | ----------- | ------------------------ |
+| `pw_table`   | Table | required    | Pathway table to display |
+| `y_column`   | str   | None        | Value column             |
+| `x_column`   | str   | None        | Time column              |
+| `title`      | str   | column name | Display title            |
+| `unit`       | str   | ""          | Y-axis unit              |
+| `chart_type` | str   | "line"      | "line" or "area"         |
+| `max_points` | int   | 200         | Max data points to show  |
 
 ---
 
-## gauge — Bounded Values
+## gauge
 
-Circular gauge for percentage-like bounded values.
+A circular gauge for values with a known range.
 
-```python
-# Pathway mode
-system = ...reduce(cpu=pw.reducers.avg(pw.this.cpu_pct))
-pv.gauge(
-    system, "cpu",
-    title="CPU",
-    max_val=100,
-    unit="%",
-    thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")],
-)
-
-# Manual mode
-cpu = pv.gauge("cpu", title="CPU", max_val=100, unit="%")
-cpu.send(72)
-```
-
-### Parameters
-
-| Parameter    | Type         | Default     | Description                              |
-| ------------ | ------------ | ----------- | ---------------------------------------- |
-| `source`     | Table \| str | required    | Pathway table or widget ID               |
-| `column`     | str          | None        | Column to display (required for Pathway) |
-| `id`         | str          | auto        | Widget identifier                        |
-| `title`      | str          | column name | Display title                            |
-| `unit`       | str          | ""          | Unit suffix                              |
-| `min_val`    | float        | 0           | Minimum scale value                      |
-| `max_val`    | float        | 100         | Maximum scale value                      |
-| `color`      | str          | auto        | Gauge color                              |
-| `thresholds` | list         | None        | Color zones: [(value, color), ...]       |
-| `embed`      | bool         | False       | Enable /embed/{id} endpoint              |
-
-### Thresholds
-
-Define color zones that change based on value:
+**When to use:** Percentages, utilization, anything with a min/max.
 
 ```python
-thresholds=[
-    (50, "#00ff88"),   # Green: 0-50
-    (80, "#ffd93d"),   # Yellow: 50-80
-    (100, "#ff6b6b"),  # Red: 80-100
-]
+pv.gauge(system, "cpu", title="CPU", max_val=100, unit="%")
+
+# With color thresholds (green → yellow → red)
+pv.gauge(system, "cpu", title="CPU", max_val=100, unit="%",
+         thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
 ```
 
-### Use Cases
-
-- CPU utilization
-- Memory usage
-- Disk space
-- SLA compliance percentages
+| Parameter    | Type  | Default  | Description                        |
+| ------------ | ----- | -------- | ---------------------------------- |
+| `pw_table`   | Table | required | Pathway table to display           |
+| `column`     | str   | None     | Column to display                  |
+| `min_val`    | float | 0        | Minimum scale                      |
+| `max_val`    | float | 100      | Maximum scale                      |
+| `thresholds` | list  | None     | Color zones: [(value, color), ...] |
 
 ---
 
-## table — Live Data Tables
+## table
 
-Display grouped data or event streams as a table.
+A live table that updates as data changes.
+
+**When to use:** Grouped data, event logs, leaderboards.
 
 ```python
-# Pathway mode (auto-updates)
-by_region = orders.groupby(pw.this.region).reduce(
-    region=pw.this.region,
-    revenue=pw.reducers.sum(pw.this.amount),
-    orders=pw.reducers.count(),
-)
-pv.table(
-    by_region,
-    title="Revenue by Region",
-    columns=["region", "revenue", "orders"],
-    column_labels={"revenue": "Revenue ($)", "orders": "Order Count"},
-    sort_by="revenue",
-    sort_desc=True,
-)
-
-# Manual mode (append rows)
-events = pv.table("events", title="Events", columns=["time", "level", "msg"])
-events.send({"time": "12:00:01", "level": "INFO", "msg": "Started"})
-events.send({"time": "12:00:02", "level": "ERROR", "msg": "Failed"})
+pv.table(by_region, columns=["region", "revenue"], sort_by="revenue")
 ```
 
-### Parameters
+| Parameter       | Type  | Default  | Description              |
+| --------------- | ----- | -------- | ------------------------ |
+| `pw_table`      | Table | required | Pathway table to display |
+| `columns`       | list  | all      | Columns to display       |
+| `column_labels` | dict  | None     | {"col": "Display Name"}  |
+| `column_format` | dict  | None     | {"amount": "$,.2f"}      |
+| `max_rows`      | int   | 100      | Maximum rows             |
+| `sort_by`       | str   | None     | Sort column              |
 
-| Parameter       | Type         | Default  | Description                         |
-| --------------- | ------------ | -------- | ----------------------------------- |
-| `source`        | Table \| str | required | Pathway table or widget ID          |
-| `id`            | str          | auto     | Widget identifier                   |
-| `title`         | str          | "Table"  | Display title                       |
-| `columns`       | list         | all      | Which columns to display            |
-| `column_labels` | dict         | None     | Display names: {"col": "Label"}     |
-| `column_format` | dict         | None     | Format strings: {"amount": "$,.2f"} |
-| `max_rows`      | int          | 100      | Maximum rows to show                |
-| `sort_by`       | str          | None     | Column to sort by                   |
-| `sort_desc`     | bool         | True     | Sort descending                     |
-| `embed`         | bool         | False    | Enable /embed/{id} endpoint         |
-
-### Pathway vs Manual Mode
-
-**Pathway mode:** Table reflects the current state of the Pathway table. Rows are upserted/deleted based on primary key.
-
-**Manual mode:** Rows are appended. Old rows scroll off when `max_rows` is reached.
-
-### Use Cases
-
-- Grouped aggregations (by region, category, etc.)
-- Recent events/logs
-- Top N items
-- Leaderboards
+Rows update in place based on Pathway's row key.
 
 ---
 
-## Embedding
+## Common Parameters
 
-Enable embedding to use widgets in external pages:
+All widgets also support:
 
-```python
-pv.configure(embed=True)
-pv.stat("revenue", title="Revenue", embed=True)
-pv.chart("latency", title="Latency", embed=True)
-pv.start()
-```
-
-Access individual widgets at:
-
-- `http://localhost:3000/embed/revenue`
-- `http://localhost:3000/embed/latency`
-
-### HTML Embed
-
-```html
-<iframe
-  src="http://localhost:3000/embed/revenue"
-  style="border: none; width: 250px; height: 150px;"
-></iframe>
-```
-
-### React Component
-
-```tsx
-// components/PathwayVizWidget.tsx
-"use client";
-import { useEffect, useRef } from "react";
-
-interface Props {
-  widgetId: string;
-  serverUrl?: string;
-  className?: string;
-}
-
-export function PathwayVizWidget({
-  widgetId,
-  serverUrl = "http://localhost:3000",
-  className = "",
-}: Props) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  return (
-    <iframe
-      ref={iframeRef}
-      src={`${serverUrl}/embed/${widgetId}`}
-      className={className}
-      style={{ border: "none", width: "100%", height: "100%" }}
-    />
-  );
-}
-
-// Usage
-<PathwayVizWidget widgetId="revenue" className="h-32" />;
-```
-
-### Svelte Component
-
-```svelte
-<!-- PathwayVizWidget.svelte -->
-<script lang="ts">
-  interface Props {
-    widgetId: string;
-    serverUrl?: string;
-    class?: string;
-  }
-
-  let {
-    widgetId,
-    serverUrl = "http://localhost:3000",
-    class: className = ""
-  }: Props = $props();
-</script>
-
-<iframe
-  src="{serverUrl}/embed/{widgetId}"
-  class={className}
-  style="border: none; width: 100%; height: 100%;"
-  title={widgetId}
-></iframe>
-```
-
----
-
-## Layout Control
-
-Widgets appear in the order you create them. Currently, PathwayViz uses a responsive grid layout automatically.
-
-```python
-# These appear in order: left to right, top to bottom
-pv.stat("revenue", title="Revenue")
-pv.stat("orders", title="Orders")
-pv.stat("avg", title="Average")
-pv.chart("trend", title="Trend")
-pv.table("breakdown", title="Breakdown")
-```
+| Parameter | Type | Default | Description                       |
+| --------- | ---- | ------- | --------------------------------- |
+| `id`      | str  | auto    | Widget identifier (for embedding) |
+| `color`   | str  | auto    | Widget color                      |
+| `embed`   | bool | False   | Enable `/embed/{id}` endpoint     |
 
 ## Colors
 
-PathwayViz auto-assigns colors from a palette, or specify your own:
+Colors are auto-assigned, or specify your own:
 
 ```python
-pv.stat("revenue", color="#00ff88")
-pv.chart("errors", color="#ff6b6b")
+pv.stat(totals, "revenue", color="#00ff88")
 ```
 
-Default palette:
-
-- `#00d4ff` (cyan)
-- `#00ff88` (green)
-- `#ff6b6b` (red)
-- `#ffd93d` (yellow)
-- `#c44dff` (purple)
-- `#ff8c42` (orange)
+Default palette: `#00d4ff` `#00ff88` `#ff6b6b` `#ffd93d` `#c44dff` `#ff8c42`

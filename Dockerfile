@@ -32,12 +32,6 @@
 #     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
 #     pathway-viz python my_pipeline.py
 #
-#   # With DuckDB persistence (mount a volume)
-#   docker run -p 3000:3000 \
-#     -v pathwayviz-data:/app/data \
-#     -v $(pwd)/my_pipeline.py:/app/my_pipeline.py \
-#     pathway-viz python my_pipeline.py
-#
 # ==============================================================================
 
 ARG PYTHON_VERSION=3.12
@@ -83,17 +77,10 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/target/wheels/*.whl ./
 
 # Install the package with all optional dependencies
-RUN pip install --no-cache-dir *.whl && rm -f *.whl
-
-# Copy examples for reference
-COPY examples ./examples
-
-# Create data directory for persistence
-RUN mkdir -p /app/data
+RUN pip install --no-cache-dir *.whl[all] && rm -f *.whl
 
 # Environment variables
 ENV PATHWAYVIZ_PORT=3000
-ENV PATHWAYVIZ_DATA_DIR=/app/data
 
 # Expose the default port
 EXPOSE 3000
