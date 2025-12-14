@@ -1,6 +1,6 @@
 # E-Commerce Demo
 
-Full streaming pipeline: Kafka → Pathway → PathwayViz.
+Full streaming pipeline: Kafka/Redpanda → Pathway → PathwayViz.
 
 ```mermaid
 flowchart LR

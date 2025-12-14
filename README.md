@@ -26,7 +26,7 @@ PathwayViz is a simpler option: add a few lines of Python, get a production-read
 import pathway as pw
 import pathway_viz as pv
 
-# Read from Kafka (or any Pathway source)
+# Read from Kafka/Redpanda (or any Pathway source)
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
@@ -67,6 +67,8 @@ PathwayViz uses a small Rust extension module (built with `pyo3`) for the hot pa
 This keeps the runtime responsive under load and avoids Python bottlenecks in the networking/event-loop layer.
 
 ## Demo
+
+![PathwayViz Demo](assets/demo.gif)
 
 ## Install
 

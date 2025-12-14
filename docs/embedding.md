@@ -8,7 +8,7 @@ Embed PathwayViz widgets in your web app via iframes.
 import pathway as pw
 import pathway_viz as pv
 
-orders = pw.io.kafka.read(...)
+orders = pw.io.kafka.read(...)  # Works with Kafka or Redpanda
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
 pv.configure(embed=True)
