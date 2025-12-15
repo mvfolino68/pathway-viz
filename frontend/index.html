@@ -21,7 +21,8 @@
         margin: 0;
         padding: 0;
       }
-      :root {
+      :root,
+      .theme-dark {
         --bg-base: #0a0a0a;
         --bg-surface: #111111;
         --bg-elevated: #1a1a1a;
@@ -35,6 +36,25 @@
         --amber: #ffb800;
         --red: #ff4444;
         --mono: "JetBrains Mono", monospace;
+        --chart-grid: #262626;
+        --chart-axis: #404040;
+      }
+      .theme-light,
+      .theme-light .widget {
+        --bg-base: #ffffff;
+        --bg-surface: #f8f8f8;
+        --bg-elevated: #f0f0f0;
+        --border: #e0e0e0;
+        --text: #1a1a1a;
+        --text-muted: #666666;
+        --accent: #00a85a;
+        --accent-dim: #008548;
+        --accent-glow: rgba(0, 168, 90, 0.12);
+        --chart-grid: #e8e8e8;
+        --chart-axis: #999999;
+      }
+      .theme-light {
+        background: var(--bg-base);
       }
       html,
       body {
@@ -203,6 +223,18 @@
     <script>
       const params = new URLSearchParams(window.location.search);
       const embedWidget = params.get("widget");
+      const theme = params.get("theme");
+      const isLightTheme = theme === "light";
+      if (isLightTheme) {
+        document.body.classList.add("theme-light");
+      }
+
+      // Theme-aware colors for charts
+      const getThemeColors = () => ({
+        chartAxis: isLightTheme ? "#999999" : "#404040",
+        chartGrid: isLightTheme ? "#e8e8e8" : "#262626",
+      });
+
       const widgets = {};
       const widgetsEl = document.getElementById("widgets");
       const chartColors = [
@@ -285,18 +317,18 @@
               scales: { x: { time: true }, y: { auto: true } },
               axes: [
                 {
-                  stroke: "#404040",
-                  grid: { stroke: "#262626", width: 1 },
+                  stroke: getThemeColors().chartAxis,
+                  grid: { stroke: getThemeColors().chartGrid, width: 1 },
                   font: "500 9px 'JetBrains Mono'",
                   size: 40,
-                  ticks: { stroke: "#404040", size: 3 },
+                  ticks: { stroke: getThemeColors().chartAxis, size: 3 },
                 },
                 {
-                  stroke: "#404040",
-                  grid: { stroke: "#262626", width: 1 },
+                  stroke: getThemeColors().chartAxis,
+                  grid: { stroke: getThemeColors().chartGrid, width: 1 },
                   font: "500 9px 'JetBrains Mono'",
                   size: 45,
-                  ticks: { stroke: "#404040", size: 3 },
+                  ticks: { stroke: getThemeColors().chartAxis, size: 3 },
                 },
               ],
               cursor: {

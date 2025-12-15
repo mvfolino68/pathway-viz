@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TB
     subgraph Python["Your Python Code"]
-        A[Pathway Pipeline] -->|pw.io.subscribe| B[PathwayViz Python]
+        A[Pathway Pipeline] -->|pw.io.subscribe| B[WidgetServer]
         B -->|JSON| C[Rust WebSocket Server]
     end
     C -->|broadcast| D[Browser 1]
@@ -15,16 +15,17 @@ flowchart TB
 
 ### Components
 
-| Component             | Role                                                                                                                                                 |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Pathway**           | Stream processing engine. Reads from Kafka/files, transforms data, computes aggregations. Uses incremental computation—only recomputes what changed. |
-| **PathwayViz Python** | Subscribes to Pathway tables via `pw.io.subscribe()`, converts updates to JSON, forwards to Rust server.                                             |
-| **Rust Server**       | High-throughput WebSocket fan-out. Maintains ring buffers for history. Serves embedded frontend. No Python GIL bottleneck.                           |
-| **Browser**           | Renders dashboard with uPlot charts, tables, gauges.                                                                                                 |
+| Component          | Role                                                                                                                                                 |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pathway**        | Stream processing engine. Reads from Kafka/files, transforms data, computes aggregations. Uses incremental computation—only recomputes what changed. |
+| **WidgetServer**   | Manages widget registration and lifecycle. Each widget subscribes to a Pathway table via `pw.io.subscribe()`.                                        |
+| **Widget Classes** | `Stat`, `Chart`, `Gauge`, `Table` - convert Pathway updates to JSON and forward to Rust server.                                                      |
+| **Rust Server**    | High-throughput WebSocket fan-out. Maintains ring buffers for history. Serves embedded frontend. No Python GIL bottleneck.                           |
+| **Browser**        | Renders widgets with uPlot charts, tables, gauges. Each widget embeddable via iframe.                                                                |
 
 ## How It Works
 
-Pass Pathway tables directly. PathwayViz auto-subscribes via `pw.io.subscribe()` and updates widgets when data changes.
+Create a `WidgetServer`, register widgets with Pathway tables, and start the server. Widgets auto-subscribe and update when data changes.
 
 ```python
 import pathway as pw
@@ -33,8 +34,9 @@ import pathwayviz as pv
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
-pv.stat(totals, "revenue", title="Revenue")
-pv.start()
+server = pv.WidgetServer(port=3000)
+server.register(pv.Stat(totals, "revenue", id="revenue", title="Revenue"))
+server.start()
 pw.run()
 ```
 
@@ -100,7 +102,7 @@ orders_5min = orders.windowby(
 ### With PathwayViz
 
 ```python
-pv.chart(orders_per_minute, "count", x_column="window_end", title="Orders/min")
+server.register(pv.Chart(orders_per_minute, "count", id="orders_chart", x_column="window_end", title="Orders/min"))
 ```
 
 ## Event Time vs Processing Time

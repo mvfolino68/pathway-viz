@@ -317,63 +317,84 @@ def setup_pathway_pipeline(port: int):
         revenue=pw.reducers.sum(pw.this.total)
     )
 
-    # === REGISTER WIDGETS WITH PATHWAY TABLES ===
+    # === REGISTER WIDGETS WITH WIDGET SERVER ===
     # Widget IDs must match what portal.html expects
 
-    pv.title("E-Commerce Analytics")
-    pv.configure(embed=True)
+    server = pv.WidgetServer(port=port, title="E-Commerce Analytics")
 
     # Key metrics (IDs: revenue, orders, avg_order)
-    pv.stat(session_totals, "revenue", id="revenue", title="Today's Revenue", unit="$", embed=True)
-    pv.stat(session_totals, "order_count", id="orders", title="Today's Orders", embed=True)
-    pv.stat(session_totals, "avg_order", id="avg_order", title="Avg Order", unit="$", embed=True)
+    server.register(
+        pv.Stat(session_totals, "revenue", id="revenue", title="Today's Revenue", unit="$")
+    )
+    server.register(pv.Stat(session_totals, "order_count", id="orders", title="Today's Orders"))
+    server.register(
+        pv.Stat(session_totals, "avg_order", id="avg_order", title="Avg Order", unit="$")
+    )
 
     # Charts (IDs: revenue_chart, orders_chart)
     # Revenue: use session_totals for cumulative (keeps increasing over time)
-    pv.chart(
-        session_totals,
-        "revenue",
-        id="revenue_chart",
-        title="Cumulative Revenue",
-        unit="$",
-        color="#00ff88",
-        embed=True,
+    server.register(
+        pv.Chart(
+            session_totals,
+            "revenue",
+            id="revenue_chart",
+            title="Cumulative Revenue",
+            unit="$",
+            color="#00ff88",
+        )
     )
     # Orders/sec: 1-second windows means order_count = orders per second
-    pv.chart(
-        windowed,
-        "order_count",
-        x_column="window_end",
-        id="orders_chart",
-        title="Orders/sec",
-        color="#00d4ff",
-        embed=True,
+    server.register(
+        pv.Chart(
+            windowed,
+            "order_count",
+            x_column="window_end",
+            id="orders_chart",
+            title="Orders/sec",
+            color="#00d4ff",
+        )
     )
 
     # Breakdown tables (more useful for business analytics)
-    pv.table(by_region, title="Revenue by Region", columns=["region", "revenue", "orders"])
-    pv.table(by_category, title="Revenue by Category", columns=["category", "revenue", "orders"])
+    server.register(
+        pv.Table(
+            by_region,
+            id="by_region",
+            title="Revenue by Region",
+            columns=["region", "revenue", "orders"],
+        )
+    )
+    server.register(
+        pv.Table(
+            by_category,
+            id="by_category",
+            title="Revenue by Category",
+            columns=["category", "revenue", "orders"],
+        )
+    )
 
     # Region stats (IDs: us_east, us_west, europe, asia)
-    pv.stat(us_east, "revenue", id="us_east", title="US-East", unit="$", embed=True)
-    pv.stat(us_west, "revenue", id="us_west", title="US-West", unit="$", embed=True)
-    pv.stat(europe, "revenue", id="europe", title="Europe", unit="$", embed=True)
-    pv.stat(asia, "revenue", id="asia", title="Asia", unit="$", embed=True)
+    server.register(pv.Stat(us_east, "revenue", id="us_east", title="US-East", unit="$"))
+    server.register(pv.Stat(us_west, "revenue", id="us_west", title="US-West", unit="$"))
+    server.register(pv.Stat(europe, "revenue", id="europe", title="Europe", unit="$"))
+    server.register(pv.Stat(asia, "revenue", id="asia", title="Asia", unit="$"))
 
     # Category stats (IDs: electronics, apparel, books, grocery)
-    pv.stat(electronics, "revenue", id="electronics", title="Electronics", unit="$", embed=True)
-    pv.stat(apparel, "revenue", id="apparel", title="Apparel", unit="$", embed=True)
-    pv.stat(books, "revenue", id="books", title="Books", unit="$", embed=True)
-    pv.stat(grocery, "revenue", id="grocery", title="Grocery", unit="$", embed=True)
+    server.register(
+        pv.Stat(electronics, "revenue", id="electronics", title="Electronics", unit="$")
+    )
+    server.register(pv.Stat(apparel, "revenue", id="apparel", title="Apparel", unit="$"))
+    server.register(pv.Stat(books, "revenue", id="books", title="Books", unit="$"))
+    server.register(pv.Stat(grocery, "revenue", id="grocery", title="Grocery", unit="$"))
 
     # Start server
-    pv.start(port)
+    server.start()
 
-    # Return runner function
+    # Return runner function and server for cleanup
     def run():
         pw.run(monitoring_level=pw.MonitoringLevel.NONE)
 
-    return run
+    return run, server
 
 
 def run_pathway_demo(port: int = 3000):
@@ -440,7 +461,7 @@ def run_pathway_demo(port: int = 3000):
 
     # Setup Pathway pipeline and widgets (this also starts the server)
     try:
-        run_pipeline = setup_pathway_pipeline(port)
+        run_pipeline, server = setup_pathway_pipeline(port)
     except ImportError:
         print("  Error: pathway not installed")
         print("  Run: pip install pathway-viz[demo]")
@@ -463,7 +484,7 @@ def run_pathway_demo(port: int = 3000):
         print("\n  Stopping...")
         stop_event.set()
 
-        pv.stop()
+        server.stop()
 
         # Only stop Kafka if we started it
         if not kafka_was_running:

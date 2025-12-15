@@ -1,6 +1,6 @@
 # Deployment
 
-PathwayViz runs as a single Python process—pipeline, dashboard, and WebSocket server together.
+PathwayViz runs as a single Python process—pipeline, widget server, and WebSocket server together.
 
 ## Docker
 

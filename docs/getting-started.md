@@ -6,7 +6,7 @@
 pip install pathway-viz
 ```
 
-## Your First Dashboard
+## Your First Widget Server
 
 PathwayViz connects directly to [Pathway](https://pathway.com) tables and auto-updates when your streaming data changes.
 
@@ -46,12 +46,13 @@ by_region = orders.groupby(pw.this.region).reduce(
     revenue=pw.reducers.sum(pw.this.amount),
 )
 
-# Dashboard updates automatically when Pathway updates
-pv.stat(totals, "revenue", title="Revenue", unit="$")
-pv.stat(totals, "count", title="Orders")
-pv.table(by_region, columns=["region", "revenue"])
+# Create widget server and register widgets
+server = pv.WidgetServer(port=3000)
+server.register(pv.Stat(totals, "revenue", id="revenue", title="Revenue", unit="$"))
+server.register(pv.Stat(totals, "count", id="orders", title="Orders"))
+server.register(pv.Table(by_region, id="regions", columns=["region", "revenue"]))
 
-pv.start()
+server.start()
 pw.run()
 ```
 
@@ -61,7 +62,13 @@ Run it:
 python pipeline.py
 ```
 
-The dashboard shows your aggregations. Add more lines to `orders.jsonl` and watch the dashboard update.
+Open `http://localhost:3000` to see all widgets. Embed individual widgets via:
+
+```html
+<iframe src="http://localhost:3000/embed/revenue"></iframe>
+```
+
+Add more lines to `orders.jsonl` and watch the widgets update in real-time.
 
 To stream from Kafka, S3, or other sources, see [Pathway's connectors](https://pathway.com/developers/user-guide/connect/supported-data-sources/).
 
@@ -74,4 +81,4 @@ pip install pathway-viz[kafka]
 pathway-viz demo
 ```
 
-This starts Kafka, generates sample orders, and shows a real-time analytics dashboard.
+This starts Kafka, generates sample orders, and shows real-time widgets.

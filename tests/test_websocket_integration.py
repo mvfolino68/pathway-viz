@@ -144,17 +144,17 @@ def test_websocket_receives_config():
     """Test that websocket clients receive config message on connect."""
     port = _free_port()
 
-    pv.title("WebSocket Test")
-    pv.configure(embed=True)
     t = pw.debug.table_from_markdown(
         """
         | value
         | 0
         """
     )
-    pv.stat(t, "value", id="ws_test_stat", title="WS Stat")
 
-    pv.start(port)
+    # Use new WidgetServer API
+    server = pv.WidgetServer(port=port, title="WebSocket Test")
+    server.register(pv.Stat(t, "value", id="ws_test_stat", title="WS Stat"))
+    server.start()
 
     client: _WSClient | None = None
     try:
@@ -170,6 +170,6 @@ def test_websocket_receives_config():
         if client is not None:
             client.sock.close()
         try:
-            pv.stop()
+            server.stop()
         except Exception:
             pass

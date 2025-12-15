@@ -1,42 +1,21 @@
 """
-Widget implementations for PathwayViz.
+Widget classes for PathwayViz.
 
-Provides table, stat, chart, and gauge widgets for Pathway tables.
+Provides Stat, Chart, Table, and Gauge widget classes for Pathway tables.
 """
 
 from __future__ import annotations
 
 import json
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 import pathway as pw
 
 from ._pathwayviz import send_data as _send_data
-from ._state import get_state, next_color
 
-
-def _send_config() -> None:
-    """Broadcast dashboard config to all clients."""
-    state = get_state()
-    msg = {
-        "type": "config",
-        "title": state.config.title,
-        "theme": state.config.theme,
-        "widgets": state.widgets,
-        "layout": state.layout,
-        "embed_enabled": state.config.embed_enabled,
-    }
-    _send_data(json.dumps(msg))
-
-
-def _register_widget(widget_id: str, widget_config: dict) -> None:
-    """Register a widget in the dashboard."""
-    state = get_state()
-    state.widgets[widget_id] = widget_config
-    if widget_id not in state.layout:
-        state.layout.append(widget_id)
-    if state.started:
-        _send_config()
+if TYPE_CHECKING:
+    from ._server import WidgetServer
 
 
 def _get_table_columns(pw_table: Any) -> list[str]:
@@ -46,99 +25,58 @@ def _get_table_columns(pw_table: Any) -> list[str]:
 
 
 # =============================================================================
-# Table Widget
+# Widget Base Class
 # =============================================================================
 
 
-def table(
-    pw_table: Any,
-    *,
-    id: str | None = None,
-    title: str | None = None,
-    columns: list[str] | None = None,
-    column_labels: dict[str, str] | None = None,
-    column_format: dict[str, str] | None = None,
-    max_rows: int = 100,
-    sort_by: str | None = None,
-    sort_desc: bool = True,
-    embed: bool = False,
-) -> None:
+class Widget(ABC):
     """
-    Display a Pathway table as a live-updating table widget.
+    Base class for all PathwayViz widgets.
 
-    Args:
-        pw_table: Pathway Table to display
-        id: Widget identifier (auto-generated if not provided)
-        title: Display title
-        columns: Which columns to display (all if None)
-        column_labels: Display labels for columns {"col_name": "Display Name"}
-        column_format: Format strings for columns {"amount": "$,.2f"}
-        max_rows: Maximum rows to show
-        sort_by: Column to sort by
-        sort_desc: Sort descending
-        embed: Enable embeddable endpoint at /embed/{id}
-
-    Example:
-        stats = orders.groupby(pw.this.region).reduce(...)
-        pv.table(stats, title="By Region", columns=["region", "revenue"])
+    Widgets are registered with a WidgetServer and automatically stream
+    data from Pathway tables to connected browsers.
     """
-    state = get_state()
-    widget_id = id or f"pw_table_{len(state.widgets)}"
 
-    if columns is None:
-        columns = _get_table_columns(pw_table)
+    _counter: int = 0
 
-    cols = []
-    for col in columns:
-        config = {
-            "name": col,
-            "label": (column_labels or {}).get(col, col),
-        }
-        if column_format and col in column_format:
-            config["format"] = column_format[col]
-        cols.append(config)
+    def __init__(
+        self,
+        pw_table: Any,
+        *,
+        id: str | None = None,
+        title: str | None = None,
+        color: str | None = None,
+    ) -> None:
+        """
+        Initialize a widget.
 
-    _register_widget(
-        widget_id,
-        {
-            "widget_type": "pathway_table",
-            "title": title or "Table",
-            "columns": cols,
-            "max_rows": max_rows,
-            "sort_by": sort_by,
-            "sort_desc": sort_desc,
-            "embed": embed,
-        },
-    )
+        Args:
+            pw_table: Pathway table to subscribe to
+            id: Widget identifier (auto-generated if not provided)
+            title: Display title
+            color: Widget color (auto-assigned if not provided)
+        """
+        self.pw_table = pw_table
+        self.id = id or self._generate_id()
+        self.title = title
+        self.color = color
+        self._server: WidgetServer | None = None
 
-    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
-        filtered_row = {c: row.get(c) for c in columns}
+    @classmethod
+    def _generate_id(cls) -> str:
+        """Generate a unique widget ID."""
+        cls._counter += 1
+        return f"widget_{cls._counter}"
 
-        if is_addition:
-            _send_data(
-                json.dumps(
-                    {
-                        "type": "data",
-                        "widget": widget_id,
-                        "op": "upsert",
-                        "key": str(key),
-                        "row": filtered_row,
-                    }
-                )
-            )
-        else:
-            _send_data(
-                json.dumps(
-                    {
-                        "type": "data",
-                        "widget": widget_id,
-                        "op": "delete",
-                        "key": str(key),
-                    }
-                )
-            )
+    @abstractmethod
+    def _get_config(self) -> dict:
+        """Get widget configuration for the frontend."""
+        pass
 
-    pw.io.subscribe(pw_table, on_change=on_change)
+    @abstractmethod
+    def _activate(self, server: WidgetServer) -> None:
+        """Activate the widget's data subscription."""
+        pass
 
 
 # =============================================================================
@@ -146,78 +84,88 @@ def table(
 # =============================================================================
 
 
-def stat(
-    pw_table: Any,
-    column: str,
-    *,
-    id: str | None = None,
-    title: str | None = None,
-    unit: str = "",
-    color: str | None = None,
-    format: str | None = None,
-    delta: bool = True,
-    embed: bool = False,
-) -> None:
+class Stat(Widget):
     """
-    Display a column from a Pathway table as a prominent statistic.
+    A prominent single-value display with optional delta tracking.
 
     Best used with single-row tables (e.g., from reduce()).
 
-    Args:
-        pw_table: Pathway Table to display
-        column: Column to display
-        id: Widget identifier
-        title: Display title
-        unit: Unit suffix (e.g., "$", "%", "ms")
-        color: Text color
-        format: Python format string (e.g., ",.2f")
-        delta: Show change from previous value
-        embed: Enable embeddable endpoint
-
     Example:
         totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
-        pv.stat(totals, "revenue", title="Revenue", unit="$")
+        server.register(pv.Stat(totals, "revenue", title="Revenue", unit="$"))
     """
-    state = get_state()
-    widget_id = id or f"stat_{column}_{len(state.widgets)}"
-    color = color or next_color()
-    last_value: list[float | None] = [None]
 
-    _register_widget(
-        widget_id,
-        {
+    def __init__(
+        self,
+        pw_table: Any,
+        column: str,
+        *,
+        id: str | None = None,
+        title: str | None = None,
+        unit: str = "",
+        color: str | None = None,
+        format: str | None = None,
+        delta: bool = True,
+    ) -> None:
+        """
+        Create a stat widget.
+
+        Args:
+            pw_table: Pathway table to display
+            column: Column to display
+            id: Widget identifier
+            title: Display title
+            unit: Unit suffix (e.g., "$", "%", "ms")
+            color: Text color
+            format: Python format string (e.g., ",.2f")
+            delta: Show change from previous value
+        """
+        super().__init__(pw_table, id=id, title=title or column, color=color)
+        self.column = column
+        self.unit = unit
+        self.format = format
+        self.delta = delta
+        self._last_value: float | None = None
+
+    def _get_config(self) -> dict:
+        return {
             "widget_type": "stat",
-            "title": title or column,
-            "unit": unit,
-            "color": color,
-            "format": format,
-            "embed": embed,
-        },
-    )
+            "title": self.title,
+            "unit": self.unit,
+            "color": self.color,
+            "format": self.format,
+            "embed": True,
+        }
 
-    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
-        if not is_addition or column not in row:
-            return
+    def _activate(self, server: WidgetServer) -> None:
+        self._server = server
+        widget_id = self.id
+        column = self.column
+        delta_enabled = self.delta
 
-        value = row[column]
-        delta_val = None
-        if delta and last_value[0] is not None:
-            delta_val = value - last_value[0]
-        last_value[0] = value
+        def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+            if not is_addition or column not in row:
+                return
 
-        _send_data(
-            json.dumps(
-                {
-                    "type": "data",
-                    "widget": widget_id,
-                    "value": value,
-                    "delta": delta_val,
-                    "timestamp": int(time * 1000),
-                }
+            value = row[column]
+            delta_val = None
+            if delta_enabled and self._last_value is not None:
+                delta_val = value - self._last_value
+            self._last_value = value
+
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "value": value,
+                        "delta": delta_val,
+                        "timestamp": int(time * 1000),
+                    }
+                )
             )
-        )
 
-    pw.io.subscribe(pw_table, on_change=on_change)
+        pw.io.subscribe(self.pw_table, on_change=on_change)
 
 
 # =============================================================================
@@ -225,96 +173,105 @@ def stat(
 # =============================================================================
 
 
-def chart(
-    pw_table: Any,
-    y_column: str,
-    *,
-    x_column: str | None = None,
-    id: str | None = None,
-    title: str | None = None,
-    unit: str = "",
-    color: str | None = None,
-    chart_type: str = "line",
-    max_points: int = 200,
-    height: int | None = None,
-    time_window: int | None = None,
-    embed: bool = False,
-) -> None:
+class Chart(Widget):
     """
-    Display Pathway data as a time series chart.
+    A time series line or area chart.
 
     Best with windowby() aggregations.
 
-    Args:
-        pw_table: Pathway Table to display
-        y_column: Value column
-        x_column: Time column (uses window_end or Pathway time if not specified)
-        id: Widget identifier
-        title: Display title
-        unit: Y-axis unit
-        color: Line/fill color
-        chart_type: "line" or "area"
-        max_points: Max points to display
-        height: Chart height in pixels (default: 140 dashboard, 200 embed)
-        time_window: Rolling time window in seconds (default: 120, None for unlimited)
-        embed: Enable embeddable endpoint
-
     Example:
-        per_minute = orders.windowby(
-            pw.this.timestamp,
-            window=pw.temporal.tumbling(duration=timedelta(minutes=1))
-        ).reduce(count=pw.reducers.count())
-
-        pv.chart(per_minute, "count", x_column="window_end", title="Orders/min")
+        per_minute = orders.windowby(...).reduce(count=pw.reducers.count())
+        server.register(pv.Chart(per_minute, "count", x_column="window_end"))
     """
-    state = get_state()
-    widget_id = id or f"chart_{y_column}_{len(state.widgets)}"
 
-    _register_widget(
-        widget_id,
-        {
+    def __init__(
+        self,
+        pw_table: Any,
+        y_column: str,
+        *,
+        x_column: str | None = None,
+        id: str | None = None,
+        title: str | None = None,
+        unit: str = "",
+        color: str | None = None,
+        chart_type: str = "line",
+        max_points: int = 200,
+        height: int | None = None,
+        time_window: int | None = None,
+    ) -> None:
+        """
+        Create a chart widget.
+
+        Args:
+            pw_table: Pathway table to display
+            y_column: Value column
+            x_column: Time column (uses wall-clock time if not specified)
+            id: Widget identifier
+            title: Display title
+            unit: Y-axis unit
+            color: Line/fill color
+            chart_type: "line" or "area"
+            max_points: Max points to display
+            height: Chart height in pixels
+            time_window: Rolling time window in seconds (default: 120)
+        """
+        super().__init__(pw_table, id=id, title=title or y_column, color=color)
+        self.y_column = y_column
+        self.x_column = x_column
+        self.unit = unit
+        self.chart_type = chart_type
+        self.max_points = max_points
+        self.height = height
+        self.time_window = time_window if time_window is not None else 120
+
+    def _get_config(self) -> dict:
+        return {
             "widget_type": "metric",
-            "title": title or y_column,
-            "unit": unit,
-            "color": color or next_color(),
-            "chart_type": chart_type,
-            "max_points": max_points,
-            "height": height,
-            "time_window": time_window if time_window is not None else 120,
-            "embed": embed,
-        },
-    )
+            "title": self.title,
+            "unit": self.unit,
+            "color": self.color,
+            "chart_type": self.chart_type,
+            "max_points": self.max_points,
+            "height": self.height,
+            "time_window": self.time_window,
+            "embed": True,
+        }
 
-    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
-        if not is_addition or y_column not in row:
-            return
+    def _activate(self, server: WidgetServer) -> None:
+        self._server = server
+        widget_id = self.id
+        y_column = self.y_column
+        x_column = self.x_column
 
-        value = row[y_column]
+        def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+            if not is_addition or y_column not in row:
+                return
 
-        if x_column and x_column in row:
-            ts = row[x_column]
-            if hasattr(ts, "timestamp"):
-                ts = int(ts.timestamp() * 1000)
-            elif isinstance(ts, (int, float)):
-                ts = int(ts * 1000) if ts < 1e12 else int(ts)
-        else:
-            # Use wall-clock time for charts without explicit x_column
-            import time as time_module
+            value = row[y_column]
 
-            ts = int(time_module.time() * 1000)
+            if x_column and x_column in row:
+                ts = row[x_column]
+                if hasattr(ts, "timestamp"):
+                    ts = int(ts.timestamp() * 1000)
+                elif isinstance(ts, (int, float)):
+                    ts = int(ts * 1000) if ts < 1e12 else int(ts)
+            else:
+                import time as time_module
 
-        _send_data(
-            json.dumps(
-                {
-                    "type": "data",
-                    "widget": widget_id,
-                    "value": value,
-                    "timestamp": ts,
-                }
+                ts = int(time_module.time() * 1000)
+
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "value": value,
+                        "timestamp": ts,
+                    }
+                )
             )
-        )
 
-    pw.io.subscribe(pw_table, on_change=on_change)
+        pw.io.subscribe(self.pw_table, on_change=on_change)
 
 
 # =============================================================================
@@ -322,72 +279,188 @@ def chart(
 # =============================================================================
 
 
-def gauge(
-    pw_table: Any,
-    column: str,
-    *,
-    id: str | None = None,
-    title: str | None = None,
-    unit: str = "",
-    min_val: float = 0,
-    max_val: float = 100,
-    color: str | None = None,
-    thresholds: list[tuple[float, str]] | None = None,
-    embed: bool = False,
-) -> None:
+class Gauge(Widget):
     """
-    Display a Pathway column as a circular gauge.
+    A circular gauge for bounded values.
 
-    Great for percentages, utilization metrics, or any bounded value.
-
-    Args:
-        pw_table: Pathway Table to display
-        column: Column to display
-        id: Widget identifier
-        title: Display title
-        unit: Unit suffix
-        min_val: Minimum scale value
-        max_val: Maximum scale value
-        color: Gauge color
-        thresholds: Color zones as [(value, color), ...]
-        embed: Enable embeddable endpoint
+    Great for percentages, utilization metrics, or any value with a known range.
 
     Example:
-        system_stats = ...reduce(cpu=pw.reducers.avg(pw.this.cpu_pct))
-        pv.gauge(system_stats, "cpu", title="CPU", max_val=100, unit="%",
-                 thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
+        system = ...reduce(cpu=pw.reducers.avg(pw.this.cpu_pct))
+        server.register(pv.Gauge(system, "cpu", title="CPU", max_val=100, unit="%"))
     """
-    state = get_state()
-    widget_id = id or f"gauge_{column}_{len(state.widgets)}"
-    color = color or next_color()
 
-    _register_widget(
-        widget_id,
-        {
+    def __init__(
+        self,
+        pw_table: Any,
+        column: str,
+        *,
+        id: str | None = None,
+        title: str | None = None,
+        unit: str = "",
+        min_val: float = 0,
+        max_val: float = 100,
+        color: str | None = None,
+        thresholds: list[tuple[float, str]] | None = None,
+    ) -> None:
+        """
+        Create a gauge widget.
+
+        Args:
+            pw_table: Pathway table to display
+            column: Column to display
+            id: Widget identifier
+            title: Display title
+            unit: Unit suffix
+            min_val: Minimum scale value
+            max_val: Maximum scale value
+            color: Gauge color
+            thresholds: Color zones as [(value, color), ...]
+        """
+        super().__init__(pw_table, id=id, title=title or column, color=color)
+        self.column = column
+        self.unit = unit
+        self.min_val = min_val
+        self.max_val = max_val
+        self.thresholds = thresholds
+
+    def _get_config(self) -> dict:
+        return {
             "widget_type": "gauge",
-            "title": title or column,
-            "unit": unit,
-            "min": min_val,
-            "max": max_val,
-            "color": color,
-            "thresholds": thresholds or [(max_val, color)],
-            "embed": embed,
-        },
-    )
+            "title": self.title,
+            "unit": self.unit,
+            "min": self.min_val,
+            "max": self.max_val,
+            "color": self.color,
+            "thresholds": self.thresholds or [(self.max_val, self.color)],
+            "embed": True,
+        }
 
-    def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
-        if not is_addition or column not in row:
-            return
+    def _activate(self, server: WidgetServer) -> None:
+        self._server = server
+        widget_id = self.id
+        column = self.column
 
-        _send_data(
-            json.dumps(
-                {
-                    "type": "data",
-                    "widget": widget_id,
-                    "value": row[column],
-                    "timestamp": int(time * 1000),
-                }
+        def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+            if not is_addition or column not in row:
+                return
+
+            _send_data(
+                json.dumps(
+                    {
+                        "type": "data",
+                        "widget": widget_id,
+                        "value": row[column],
+                        "timestamp": int(time * 1000),
+                    }
+                )
             )
-        )
 
-    pw.io.subscribe(pw_table, on_change=on_change)
+        pw.io.subscribe(self.pw_table, on_change=on_change)
+
+
+# =============================================================================
+# Table Widget
+# =============================================================================
+
+
+class Table(Widget):
+    """
+    A live-updating table that syncs with Pathway table state.
+
+    Rows are keyed by Pathway's internal row key and update in place.
+
+    Example:
+        by_region = orders.groupby(pw.this.region).reduce(...)
+        server.register(pv.Table(by_region, title="By Region"))
+    """
+
+    def __init__(
+        self,
+        pw_table: Any,
+        *,
+        id: str | None = None,
+        title: str | None = None,
+        columns: list[str] | None = None,
+        column_labels: dict[str, str] | None = None,
+        column_format: dict[str, str] | None = None,
+        max_rows: int = 100,
+        sort_by: str | None = None,
+        sort_desc: bool = True,
+    ) -> None:
+        """
+        Create a table widget.
+
+        Args:
+            pw_table: Pathway table to display
+            id: Widget identifier
+            title: Display title
+            columns: Which columns to display (all if None)
+            column_labels: Display labels {"col_name": "Display Name"}
+            column_format: Format strings {"amount": "$,.2f"}
+            max_rows: Maximum rows to show
+            sort_by: Column to sort by
+            sort_desc: Sort descending
+        """
+        super().__init__(pw_table, id=id, title=title or "Table", color=None)
+        self.columns = columns or _get_table_columns(pw_table)
+        self.column_labels = column_labels
+        self.column_format = column_format
+        self.max_rows = max_rows
+        self.sort_by = sort_by
+        self.sort_desc = sort_desc
+
+    def _get_config(self) -> dict:
+        cols = []
+        for col in self.columns:
+            config = {
+                "name": col,
+                "label": (self.column_labels or {}).get(col, col),
+            }
+            if self.column_format and col in self.column_format:
+                config["format"] = self.column_format[col]
+            cols.append(config)
+
+        return {
+            "widget_type": "pathway_table",
+            "title": self.title,
+            "columns": cols,
+            "max_rows": self.max_rows,
+            "sort_by": self.sort_by,
+            "sort_desc": self.sort_desc,
+            "embed": True,
+        }
+
+    def _activate(self, server: WidgetServer) -> None:
+        self._server = server
+        widget_id = self.id
+        columns = self.columns
+
+        def on_change(key: Any, row: dict, time: int, is_addition: bool) -> None:
+            filtered_row = {c: row.get(c) for c in columns}
+
+            if is_addition:
+                _send_data(
+                    json.dumps(
+                        {
+                            "type": "data",
+                            "widget": widget_id,
+                            "op": "upsert",
+                            "key": str(key),
+                            "row": filtered_row,
+                        }
+                    )
+                )
+            else:
+                _send_data(
+                    json.dumps(
+                        {
+                            "type": "data",
+                            "widget": widget_id,
+                            "op": "delete",
+                            "key": str(key),
+                        }
+                    )
+                )
+
+        pw.io.subscribe(self.pw_table, on_change=on_change)

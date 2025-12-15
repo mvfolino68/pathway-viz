@@ -2,7 +2,7 @@
 
 Embed PathwayViz widgets in your web app via iframes.
 
-## Enable Embedding
+## Create Embeddable Widgets
 
 ```python
 import pathway as pw
@@ -11,13 +11,13 @@ import pathwayviz as pv
 orders = pw.io.kafka.read(...)  # Works with Kafka or Redpanda
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))
 
-pv.configure(embed=True)
-pv.stat(totals, "revenue", id="revenue", title="Revenue", embed=True)
-pv.start()
+server = pv.WidgetServer(port=3000)
+server.register(pv.Stat(totals, "revenue", id="revenue", title="Revenue"))
+server.start()
 pw.run()
 ```
 
-Your script must keep running after `pv.start()`. If the Python process exits, the server stops.
+Your script must keep running after `server.start()`. If the Python process exits, the server stops.
 
 Each widget is available at `http://localhost:3000/embed/{widget_id}`
 

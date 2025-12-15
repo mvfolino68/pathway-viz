@@ -4,93 +4,101 @@
 
 | I want to show...                           | Use this |
 | ------------------------------------------- | -------- |
-| A single number (revenue, count, avg)       | `stat`   |
-| How something changes over time             | `chart`  |
-| A percentage or bounded value (CPU, memory) | `gauge`  |
-| A list of items (top customers, events)     | `table`  |
+| A single number (revenue, count, avg)       | `Stat`   |
+| How something changes over time             | `Chart`  |
+| A percentage or bounded value (CPU, memory) | `Gauge`  |
+| A list of items (top customers, events)     | `Table`  |
 
 ---
 
-## stat
+## Stat
 
 A big number, optionally showing how much it changed.
 
 **When to use:** Totals, counts, averages—any single value you want prominent.
 
 ```python
-pv.stat(totals, "revenue", title="Revenue", unit="$")
+server.register(pv.Stat(totals, "revenue", id="revenue", title="Revenue", unit="$"))
 ```
 
-| Parameter  | Type  | Default     | Description                              |
-| ---------- | ----- | ----------- | ---------------------------------------- |
-| `pw_table` | Table | required    | Pathway table to display                 |
-| `column`   | str   | None        | Column to display (required for Pathway) |
-| `title`    | str   | column name | Display title                            |
-| `unit`     | str   | ""          | Unit suffix ($, %, ms)                   |
-| `format`   | str   | None        | Python format string (",.2f")            |
-| `delta`    | bool  | True        | Show change from previous                |
+| Parameter  | Type  | Default     | Description                       |
+| ---------- | ----- | ----------- | --------------------------------- |
+| `pw_table` | Table | required    | Pathway table to display          |
+| `column`   | str   | required    | Column to display                 |
+| `id`       | str   | auto        | Widget identifier (for embedding) |
+| `title`    | str   | column name | Display title                     |
+| `unit`     | str   | ""          | Unit suffix ($, %, ms)            |
+| `format`   | str   | None        | Python format string (",.2f")     |
+| `delta`    | bool  | True        | Show change from previous         |
+| `color`    | str   | auto        | Text color                        |
 
 ---
 
-## chart
+## Chart
 
 A line or area chart showing values over time.
 
 **When to use:** Trends, rates, anything where history matters.
 
 ```python
-pv.chart(orders_per_min, "count", x_column="window_end", title="Orders/min")
+server.register(pv.Chart(orders_per_min, "count", id="orders", x_column="window_end", title="Orders/min"))
 ```
 
-| Parameter    | Type  | Default     | Description              |
-| ------------ | ----- | ----------- | ------------------------ |
-| `pw_table`   | Table | required    | Pathway table to display |
-| `y_column`   | str   | None        | Value column             |
-| `x_column`   | str   | None        | Time column              |
-| `title`      | str   | column name | Display title            |
-| `unit`       | str   | ""          | Y-axis unit              |
-| `chart_type` | str   | "line"      | "line" or "area"         |
-| `max_points` | int   | 200         | Max data points to show  |
+| Parameter     | Type  | Default     | Description                           |
+| ------------- | ----- | ----------- | ------------------------------------- |
+| `pw_table`    | Table | required    | Pathway table to display              |
+| `y_column`    | str   | required    | Value column                          |
+| `id`          | str   | auto        | Widget identifier                     |
+| `x_column`    | str   | None        | Time column (uses wall-clock if None) |
+| `title`       | str   | column name | Display title                         |
+| `unit`        | str   | ""          | Y-axis unit                           |
+| `chart_type`  | str   | "line"      | "line" or "area"                      |
+| `max_points`  | int   | 200         | Max data points to show               |
+| `time_window` | int   | 120         | Rolling window in seconds             |
+| `color`       | str   | auto        | Line/fill color                       |
 
 ---
 
-## gauge
+## Gauge
 
 A circular gauge for values with a known range.
 
 **When to use:** Percentages, utilization, anything with a min/max.
 
 ```python
-pv.gauge(system, "cpu", title="CPU", max_val=100, unit="%")
+server.register(pv.Gauge(system, "cpu", id="cpu", title="CPU", max_val=100, unit="%"))
 
 # With color thresholds (green → yellow → red)
-pv.gauge(system, "cpu", title="CPU", max_val=100, unit="%",
-         thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")])
+server.register(pv.Gauge(system, "cpu", id="cpu", title="CPU", max_val=100, unit="%",
+                         thresholds=[(50, "#00ff88"), (80, "#ffd93d"), (100, "#ff6b6b")]))
 ```
 
 | Parameter    | Type  | Default  | Description                        |
 | ------------ | ----- | -------- | ---------------------------------- |
 | `pw_table`   | Table | required | Pathway table to display           |
-| `column`     | str   | None     | Column to display                  |
+| `column`     | str   | required | Column to display                  |
+| `id`         | str   | auto     | Widget identifier                  |
 | `min_val`    | float | 0        | Minimum scale                      |
 | `max_val`    | float | 100      | Maximum scale                      |
 | `thresholds` | list  | None     | Color zones: [(value, color), ...] |
+| `color`      | str   | auto     | Gauge color                        |
 
 ---
 
-## table
+## Table
 
 A live table that updates as data changes.
 
 **When to use:** Grouped data, event logs, leaderboards.
 
 ```python
-pv.table(by_region, columns=["region", "revenue"], sort_by="revenue")
+server.register(pv.Table(by_region, id="regions", columns=["region", "revenue"], sort_by="revenue"))
 ```
 
 | Parameter       | Type  | Default  | Description              |
 | --------------- | ----- | -------- | ------------------------ |
 | `pw_table`      | Table | required | Pathway table to display |
+| `id`            | str   | auto     | Widget identifier        |
 | `columns`       | list  | all      | Columns to display       |
 | `column_labels` | dict  | None     | {"col": "Display Name"}  |
 | `column_format` | dict  | None     | {"amount": "$,.2f"}      |
@@ -101,22 +109,29 @@ Rows update in place based on Pathway's row key.
 
 ---
 
-## Common Parameters
+## WidgetServer
 
-All widgets also support:
+The server that hosts all widgets.
 
-| Parameter | Type | Default | Description                       |
-| --------- | ---- | ------- | --------------------------------- |
-| `id`      | str  | auto    | Widget identifier (for embedding) |
-| `color`   | str  | auto    | Widget color                      |
-| `embed`   | bool | False   | Enable `/embed/{id}` endpoint     |
+```python
+server = pv.WidgetServer(port=3000, title="My Widgets", theme="dark")
+server.register(pv.Stat(...))
+server.register(pv.Chart(...))
+server.start()
+```
+
+| Parameter | Type | Default      | Description                     |
+| --------- | ---- | ------------ | ------------------------------- |
+| `port`    | int  | 3000         | Server port                     |
+| `title`   | str  | "PathwayViz" | Browser tab title               |
+| `theme`   | str  | "dark"       | Color theme ("dark" or "light") |
 
 ## Colors
 
 Colors are auto-assigned, or specify your own:
 
 ```python
-pv.stat(totals, "revenue", color="#00ff88")
+pv.Stat(totals, "revenue", id="revenue", color="#00ff88")
 ```
 
 Default palette: `#00d4ff` `#00ff88` `#ff6b6b` `#ffd93d` `#c44dff` `#ff8c42`

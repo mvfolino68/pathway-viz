@@ -1,25 +1,25 @@
 # PathwayViz Documentation
 
-PathwayViz turns streaming data into a live dashboard you can also embed inside your own product.
+PathwayViz provides embeddable real-time widgets for Pathway streaming pipelines.
 
-You define widgets in Python, stream updates (manually or via Pathway), and PathwayViz serves:
+You define widgets in Python, register them with a `WidgetServer`, and embed them anywhere via iframe:
 
-- a dashboard at `/`
-- per-widget embeds at `/embed/{widget_id}` (iframes)
+- Widget overview at `/`
+- Per-widget embeds at `/embed/{widget_id}`
 
 Start with **[Getting Started](./getting-started.md)**.
 
-After your first pipeline runs, the usual next steps are:
+After your first widget server runs, the usual next steps are:
 
-- enable embedding and add `<iframe ...>` tags in your app
-- deploy with Docker
+- Add `<iframe src="http://localhost:3000/embed/{widget_id}">` tags in your app
+- Deploy with Docker
 
 ## Guides
 
-| I want to...              | Read this                               |
-| ------------------------- | --------------------------------------- |
-| Set up my first dashboard | [Getting Started](./getting-started.md) |
-| Add widgets               | [Widgets](./widgets.md)                 |
-| Embed in my web app       | [Embedding](./embedding.md)             |
-| Deploy to production      | [Deployment](./deployment.md)           |
-| Understand how it works   | [Concepts](./concepts.md)               |
+| I want to...             | Read this                               |
+| ------------------------ | --------------------------------------- |
+| Set up my first widgets  | [Getting Started](./getting-started.md) |
+| Learn about widget types | [Widgets](./widgets.md)                 |
+| Embed in my web app      | [Embedding](./embedding.md)             |
+| Deploy to production     | [Deployment](./deployment.md)           |
+| Understand how it works  | [Concepts](./concepts.md)               |
