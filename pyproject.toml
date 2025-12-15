@@ -37,7 +37,7 @@ dev = [
 ]
 
 [project.scripts]
-pathwayviz = "pathwayviz.__main__:main"
+pathway-viz = "pathwayviz.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/mvfolino68/pathway-viz"
