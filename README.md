@@ -161,7 +161,7 @@ pw.run()
 Run the demo to see it in action:
 
 ```bash
-python -m pathway_viz
+python -m pathwayviz
 ```
 
 ## Why Rust?

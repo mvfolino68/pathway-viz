@@ -1,7 +1,7 @@
 """
 PathwayViz Demo
 
-Run with: python -m pathway_viz
+Run with: python -m pathwayviz
 
 Demonstrates real-time streaming with Pathway + Kafka and embeddable widgets.
 """

@@ -102,7 +102,7 @@ fn send_point(timestamp: u64, value: f64) -> PyResult<()> {
 }
 
 #[pymodule]
-fn _pathway_viz(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _pathwayviz(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(start_server, m)?)?;
     m.add_function(wrap_pyfunction!(stop_server, m)?)?;
     m.add_function(wrap_pyfunction!(send_data, m)?)?;

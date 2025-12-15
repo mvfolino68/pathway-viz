@@ -25,7 +25,7 @@ pytest                         # Verify everything works
 ```mermaid
 graph TD
     A[pathway-viz/] --> B[src/]
-    A --> C[python/pathway_viz/]
+    A --> C[python/pathwayviz/]
     A --> D[frontend/]
     A --> E[tests/]
     A --> F[docs/]

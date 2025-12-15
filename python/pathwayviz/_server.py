@@ -8,9 +8,9 @@ import json
 import threading
 import time
 
-from ._pathway_viz import send_data as _send_data
-from ._pathway_viz import start_server as _start_server
-from ._pathway_viz import stop_server as _stop_server
+from ._pathwayviz import send_data as _send_data
+from ._pathwayviz import start_server as _start_server
+from ._pathwayviz import stop_server as _stop_server
 from ._state import get_state
 
 

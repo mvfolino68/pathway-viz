@@ -5,10 +5,9 @@ Production-like demo using:
 - Kafka/Redpanda for streaming
 - Pathway for stream processing with windowed aggregations
 - Real business metrics
-- Alert thresholds
 
 Usage:
-    python -m pathway_viz
+    python -m pathwayviz
 """
 
 import json

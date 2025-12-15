@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from ._pathway_viz import send_data as _send_data
+from ._pathwayviz import send_data as _send_data
 from ._state import get_state
 
 
