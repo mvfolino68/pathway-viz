@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "pathway-viz"
-version = "0.1.5"
+version = "0.2.0"
 description = "The visualization layer for Pathway - real-time dashboards for streaming data"
 readme = "README.md"
 license = { text = "MIT" }
@@ -37,7 +37,7 @@ dev = [
 ]
 
 [project.scripts]
-pathway-viz = "pathway_viz.__main__:main"
+pathwayviz = "pathwayviz.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/mvfolino68/pathway-viz"
@@ -47,10 +47,10 @@ Issues = "https://github.com/mvfolino68/pathway-viz/issues"
 
 [tool.maturin]
 python-source = "python"
-module-name = "pathway_viz._pathway_viz"
+module-name = "pathwayviz._pathwayviz"
 features = ["pyo3/extension-module"]
 include = [
-    { path = "python/pathway_viz/demos/**/*", format = "sdist" },
+    { path = "python/pathwayviz/demos/**/*", format = "sdist" },
 ]
 
 [tool.ruff]

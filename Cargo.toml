@@ -1,10 +1,10 @@
 [package]
-name = "pathway_viz"
-version = "0.1.5"
+name = "pathwayviz"
+version = "0.2.0"
 edition = "2021"
 
 [lib]
-name = "_pathway_viz"
+name = "_pathwayviz"
 crate-type = ["cdylib"]
 
 [dependencies]

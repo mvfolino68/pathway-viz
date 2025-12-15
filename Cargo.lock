@@ -468,8 +468,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "pathway_viz"
-version = "0.1.5"
+name = "pathwayviz"
+version = "0.2.0"
 dependencies = [
  "axum",
  "futures",

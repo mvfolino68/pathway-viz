@@ -22,7 +22,7 @@ Create `pipeline.py`:
 
 ```python
 import pathway as pw
-import pathway_viz as pv
+import pathwayviz as pv
 
 class OrderSchema(pw.Schema):
     amount: float

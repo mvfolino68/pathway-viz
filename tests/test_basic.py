@@ -3,7 +3,7 @@ Basic tests for PathwayViz.
 """
 
 import pathway as pw
-import pathway_viz as pv
+import pathwayviz as pv
 
 
 def test_version():

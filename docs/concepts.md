@@ -28,7 +28,7 @@ Pass Pathway tables directly. PathwayViz auto-subscribes via `pw.io.subscribe()`
 
 ```python
 import pathway as pw
-import pathway_viz as pv
+import pathwayviz as pv
 
 orders = pw.io.kafka.read(...)
 totals = orders.reduce(revenue=pw.reducers.sum(pw.this.amount))

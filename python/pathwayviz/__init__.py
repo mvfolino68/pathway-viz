@@ -5,7 +5,7 @@ Real-time dashboards and embeddable widgets for Pathway streaming pipelines.
 
 Example (Dashboard):
     import pathway as pw
-    import pathway_viz as pv
+    import pathwayviz as pv
 
     # Your Pathway pipeline
     orders = pw.io.kafka.read(...)

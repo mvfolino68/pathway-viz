@@ -24,7 +24,7 @@ def cmd_demo(args):
         print("  Run: pip install pathway-viz[all]\n")
         sys.exit(1)
 
-    from pathway_viz.demos import run_demo
+    from pathwayviz.demos import run_demo
 
     run_demo(port=args.port)
 

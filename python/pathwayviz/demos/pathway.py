@@ -21,7 +21,7 @@ import time
 import uuid
 from pathlib import Path
 
-import pathway_viz as pv
+import pathwayviz as pv
 
 
 def check_docker() -> bool:
@@ -47,7 +47,7 @@ def _find_compose_file() -> tuple[Path | None, Path | None]:
     if (Path.cwd() / "docker-compose.yml").exists():
         return Path.cwd() / "docker-compose.yml", Path.cwd()
 
-    from pathway_viz.docker import get_compose_file
+    from pathwayviz.docker import get_compose_file
 
     try:
         compose_file = get_compose_file()

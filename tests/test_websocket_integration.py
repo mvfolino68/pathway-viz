@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 
 import pathway as pw
-import pathway_viz as pv
+import pathwayviz as pv
 
 
 def _free_port() -> int:
