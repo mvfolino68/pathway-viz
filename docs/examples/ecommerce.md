@@ -12,7 +12,7 @@ flowchart LR
 ## Run
 
 ```bash
-pip install pathway-viz[all]
+pip install pathway-viz[kafka]
 pathway-viz demo
 ```
 
